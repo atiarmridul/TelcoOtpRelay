@@ -1,0 +1,37 @@
+# Gradle and Kotlin
+.gradle/
+.kotlin/
+**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# Android Studio user-specific files
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/shelf/
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deploymentTargetDropDown.xml
+.idea/deviceManager.xml
+
+# Native build output
+.externalNativeBuild/
+.cxx/
+
+# Generated captures and logs
+captures/
+*.log
+
+# Signing credentials
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

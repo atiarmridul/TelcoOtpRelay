@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#175CD3</color>
+    <color name="primary_button_ripple">#33FFFFFF</color>
+    <color name="secondary_button_ripple">#1F175CD3</color>
+    <color name="screen_background">#F5F7FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="outline">#CBD5E1</color>
+    <color name="divider">#D8E1EC</color>
+    <color name="text_primary">#172033</color>
+    <color name="text_secondary">#526077</color>
+    <color name="text_hint">#7C899D</color>
+    <color name="success_surface">#E8F7EF</color>
+    <color name="success_text">#16734A</color>
+    <color name="info_surface">#EAF2FF</color>
+    <color name="info_text">#2059A8</color>
+    <color name="warning_surface">#FFF4D6</color>
+    <color name="warning_text">#855800</color>
+    <color name="error_surface">#FDECEC</color>
+    <color name="error_text">#B42318</color>
+</resources>
