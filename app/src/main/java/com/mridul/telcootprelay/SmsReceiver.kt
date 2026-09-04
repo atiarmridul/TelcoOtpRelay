@@ -41,21 +41,15 @@ class SmsReceiver : BroadcastReceiver() {
                 val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
                 if (body.isBlank()) return@execute
 
-                val sender = messages.asSequence()
-                    .mapNotNull { it.originatingAddress?.trim()?.takeIf(String::isNotEmpty) }
-                    .firstOrNull()
-                    ?: "Unknown"
-
-                if (!SenderFilter.allows(
-                        sender,
-                        prefs.getString(RelaySettings.SENDERS_KEY, null)
-                    )
-                ) return@execute
-
                 val relayMode = RelayMode.fromStored(
                     prefs.getString(RelaySettings.MODE_KEY, null)
                 )
                 if (!relayMode.shouldRelay(body)) return@execute
+
+                val sender = messages.asSequence()
+                    .mapNotNull { it.originatingAddress?.trim()?.takeIf(String::isNotEmpty) }
+                    .firstOrNull()
+                    ?: "Unknown"
 
                 val timestamp = messages.minOfOrNull { it.timestampMillis }
                     ?: System.currentTimeMillis()

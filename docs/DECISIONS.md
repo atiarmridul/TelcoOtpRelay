@@ -103,18 +103,6 @@ This file records the important decisions visible in the current implementation.
   detailed latest-delivery information remains available without displaying the SMS body or OTP.
   Small windows and large accessibility text still rely on fallback scrolling.
 
-## ADR-013: Make Sender Filtering an Optional Allow-list
-
-- **Status:** Accepted
-- **Decision:** Store an optional list of originating sender addresses in app-private preferences
-  and require a match before applying the relay-mode filter. A blank list allows every sender.
-  Matching ignores case and common phone-number formatting characters.
-- **Reason:** Dedicated QA workflows may need messages from only selected numbers or branded sender
-  IDs, while existing installations must continue forwarding from all senders.
-- **Consequences:** The sender list becomes locally retained configuration. Sender addresses exposed
-  by carriers can vary in format, so users must configure the address Android reports; missing
-  originating addresses do not match a populated list.
-
 ## Changing a Decision
 
 When changing an accepted decision:

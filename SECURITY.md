@@ -29,7 +29,6 @@ Changes require additional review when they affect:
 
 - SMS broadcast receiver exposure or permissions
 - Relay-mode selection, persistence, fallback behavior, and forwarding rules
-- Sender allow-list matching and persistence
 - OTP detection and the broader data exposure of **All incoming messages** mode
 - Webhook URL validation or storage
 - Storage and display of latest-relay sender, timestamp, and result metadata
@@ -54,8 +53,6 @@ Deleting the current file alone does not remove a secret from Git history.
 
 - Install the app only on authorized QA devices.
 - Keep OTP-only mode selected unless forwarding all SMS is explicitly required and approved.
-- Treat sender filtering as a routing control, not sender authentication; originating addresses can
-  be formatted inconsistently and may be spoofed depending on the network.
 - Restrict access to the device and its configured Google Chat space.
 - Keep Android security updates current.
 - Do not enable backups or diagnostic logging that captures SMS content.

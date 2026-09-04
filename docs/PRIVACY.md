@@ -18,7 +18,7 @@ For an incoming SMS, the app may process:
 - Receiving subscription identifier during in-memory processing
 
 The app also processes the Google Chat webhook URL entered by the user.
-It stores the user's relay-mode choice and optional sender allow-list.
+It stores the user's relay-mode choice.
 After a qualifying delivery attempt finishes, it stores the latest delivered/failed result, sender,
 and SMS timestamp for display in a dedicated latest-relay card. The compact header badge displays
 configuration and test state only; neither surface receives the SMS body, OTP, receiving number, or
@@ -27,8 +27,6 @@ webhook value.
 ## Data Collection Rules
 
 - SMS content is inspected only after Android delivers an incoming SMS broadcast.
-- When a sender allow-list is configured, messages from other originating addresses are not
-  forwarded. A blank list accepts every sender.
 - In OTP-only mode, a regex filter determines whether the message appears to contain an OTP.
 - In **All incoming messages** mode, every non-empty incoming SMS is accepted without OTP
   classification.
@@ -42,7 +40,6 @@ webhook value.
 |-----------------------|-----------------|---------------------------------------------------------------------|
 | Webhook URL           | Yes             | Stored in app-private `SharedPreferences`.                          |
 | Relay mode            | Yes             | Stored in app-private `SharedPreferences`; defaults to OTP-only.    |
-| Sender allow-list     | Yes             | Optional originating addresses; blank means all senders.           |
 | Latest relay result   | Yes             | Delivered/failed state; overwritten by the next qualifying relay.  |
 | Latest relay sender   | Yes             | Sender only; overwritten by the next qualifying relay.             |
 | Latest relay timestamp| Yes             | SMS timestamp; overwritten by the next qualifying relay.           |
@@ -51,7 +48,7 @@ webhook value.
 | SIM number            | No              | Resolved for the current message only.                              |
 
 Application backup is disabled. Clearing app data or uninstalling the app removes its stored webhook,
-relay-mode and sender configuration, and latest-relay metadata.
+relay-mode configuration, and latest-relay metadata.
 
 ## Data Transmission
 
@@ -74,7 +71,7 @@ Phone-number access may return no value even when permission is granted.
 
 ## Retention and Deletion
 
-The app itself retains the webhook, relay-mode and sender configuration, and latest relay result, sender, and
+The app itself retains the webhook, relay-mode configuration, and latest relay result, sender, and
 timestamp. It does not retain the SMS body or OTP. To remove locally stored data:
 
 1. Clear the app's storage in Android settings, or
@@ -86,7 +83,6 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 
 - Android permissions can be revoked in system settings.
 - The webhook and relay mode can be replaced from the app.
-- The sender allow-list can be changed or cleared; clearing it allows all senders.
 - The latest-relay record is overwritten by the next qualifying delivery attempt.
 - The latest-relay card is hidden when no record exists and displays only result, sender, and
   timestamp when populated.
@@ -99,10 +95,6 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 ## Privacy Risks
 
 - Regex filtering may forward a non-OTP message containing a standalone six-digit number.
-- Carrier-provided sender formatting can differ from the configured value and cause an expected
-  message not to be forwarded.
-- Sender filtering reduces which messages are relayed but does not authenticate the sender; SMS
-  originating addresses may be spoofed depending on the network.
 - **All incoming messages** mode intentionally forwards personal, transactional, and marketing SMS
   messages as well as OTPs.
 - A qualifying SMS may contain personal or account information beyond the OTP.
