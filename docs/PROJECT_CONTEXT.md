@@ -12,7 +12,7 @@ The primary user is a QA or engineering team operating an authorized Android dev
 
 ## Core Job
 
-Given a newly received SMS, apply the user-selected relay mode and, when accepted, forward a
+Given a newly received SMS, apply the optional sender allow-list and user-selected relay mode and, when accepted, forward a
 readable record containing the receiving number, sender, local timestamp, and complete original body
 to the configured Google Chat webhook.
 
@@ -25,6 +25,8 @@ to the configured Google Chat webhook.
   without scrolling while preserving fallback scrolling for constrained windows.
 - New multipart SMS messages are reconstructed correctly.
 - **All incoming messages** mode forwards every non-empty incoming SMS body.
+- A blank sender list accepts every sender; a populated list accepts only matching originating
+  addresses.
 - OTP-only mode forwards likely OTP messages and rejects non-qualifying messages.
 - Existing installations without a saved mode remain OTP-only.
 - Missing SIM-number data is represented honestly as `Unknown`.
@@ -55,6 +57,7 @@ to the configured Google Chat webhook.
 | Sender             | The SMS originating address supplied by Android.                                   |
 | Webhook            | A Google Chat incoming-webhook URL saved through the app UI.                       |
 | Relay mode         | The saved choice between **OTP messages only** and **All incoming messages**.       |
+| Sender allow-list  | Optional comma- or newline-separated originating addresses; blank means all senders. |
 | Relay              | Formatting and posting a qualifying SMS to Google Chat.                            |
 | Last relay         | The latest delivery result, sender, and SMS timestamp; not a message history.       |
 | Status badge       | Compact configuration/test state; not an incoming-message delivery record.         |
@@ -88,6 +91,7 @@ Body: <complete original SMS body>
 - The configured webhook belongs to a restricted Google Chat space.
 - The user understands that **All incoming messages** mode can forward personal and
   non-authentication content.
+- Sender filtering is applied in addition to the selected relay mode.
 - Android may terminate the process before long asynchronous delivery completes.
 
 ## Source of Truth

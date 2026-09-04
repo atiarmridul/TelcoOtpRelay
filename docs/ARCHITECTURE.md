@@ -9,9 +9,11 @@ SMS Relay is a single-module Android application built around the `SMS_RECEIVED`
 ```mermaid
 flowchart TD
     A[Android SMS_RECEIVED broadcast] --> B[SmsReceiver]
-    B --> C[Load webhook and RelayMode from SharedPreferences]
+    B --> C[Load webhook, sender list, and RelayMode from SharedPreferences]
     C --> D[Reconstruct SMS parts]
-    D --> E{RelayMode accepts message?}
+    D --> S{SenderFilter accepts sender?}
+    S -- No --> F
+    S -- Yes --> E{RelayMode accepts message?}
     E -- No --> F[Finish broadcast]
     E -- Yes --> G[Resolve receiving SIM number]
     G --> H[SmsFormatter creates message]
@@ -34,6 +36,8 @@ The launcher activity provides a focused, card-based configuration surface. It:
 - Masks the webhook by default and provides an explicit Show/Hide control
 - Shows a dedicated privacy warning when **All incoming messages** is selected
 - Stores the webhook and relay mode in the app-private `relay` preferences file
+- Stores an optional sender allow-list in the same app-private preferences file; blank allows all
+  senders
 - Displays compact `Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, and `Failed`
   configuration/test states in a header badge
 - Displays most-recent-relay metadata in a separate delivered/failed card only when a record exists
@@ -54,7 +58,7 @@ metadata out of transient configuration feedback.
 ### `AboutPrivacyActivity`
 
 This read-only activity explains local storage, Google Chat transmission, permissions, and user
-controls. It does not read or change the webhook, relay mode, or last-relay record.
+controls. It does not read or change the webhook, sender list, relay mode, or last-relay record.
 
 The UI label **All incoming messages** maps to the persisted `RelayMode.ALL_MESSAGES` value. Changing
 the field selection alone does not update preferences; the user must explicitly save it.
@@ -68,6 +72,7 @@ The manifest-registered broadcast receiver is the central orchestrator. It:
 - Dispatches processing to one shared single-thread executor
 - Reconstructs multipart SMS bodies
 - Selects the first available originating address
+- Rejects messages whose originating address is not in the configured sender allow-list
 - Applies the saved relay mode
 - Invokes parsing when needed, followed by SIM resolution, formatting, and delivery
 - Overwrites the last-relay record with the delivery result, sender, and SMS timestamp
@@ -94,6 +99,13 @@ The mode is a pure enum with two values:
 
 Missing or unknown stored values resolve to `OTP_ONLY`, preserving the previous behavior for
 existing installations.
+
+### `SenderFilter`
+
+The sender filter is a pure allow-list gate. It accepts comma-, semicolon-, or newline-separated
+sender addresses, ignores case and common phone-number formatting characters when matching, and
+allows every sender when no entries are configured. Existing installations therefore retain their
+previous sender behavior.
 
 ### `SimNumberResolver`
 

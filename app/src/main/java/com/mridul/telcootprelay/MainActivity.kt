@@ -30,6 +30,7 @@ class MainActivity : Activity() {
     }
 
     private lateinit var webhookEdit: EditText
+    private lateinit var sendersEdit: EditText
     private lateinit var relayModeSpinner: Spinner
     private lateinit var modeDescription: TextView
     private lateinit var allMessagesPrivacyWarning: TextView
@@ -75,6 +76,7 @@ class MainActivity : Activity() {
 
     private fun bindViews() {
         webhookEdit = findViewById(R.id.webhook_edit)
+        sendersEdit = findViewById(R.id.senders_edit)
         webhookVisibilityButton = findViewById(R.id.webhook_visibility_button)
         relayModeSpinner = findViewById(R.id.relay_mode_spinner)
         modeDescription = findViewById(R.id.mode_description)
@@ -113,6 +115,7 @@ class MainActivity : Activity() {
 
     private fun configureForm() {
         webhookEdit.setText(prefs.getString(RelaySettings.WEBHOOK_KEY, ""))
+        sendersEdit.setText(prefs.getString(RelaySettings.SENDERS_KEY, ""))
         relayModeSpinner.adapter = ArrayAdapter.createFromResource(
             this,
             R.array.relay_mode_options,
@@ -146,6 +149,15 @@ class MainActivity : Activity() {
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+        sendersEdit.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                showUnsavedIfNeeded()
+            }
+
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
         relayModeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 updateModeDescription()
@@ -158,8 +170,11 @@ class MainActivity : Activity() {
 
     private fun showUnsavedIfNeeded() {
         val savedWebhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "").orEmpty()
+        val savedSenders = prefs.getString(RelaySettings.SENDERS_KEY, "").orEmpty()
         val hasUnsavedChanges =
-            webhookEdit.text.toString().trim() != savedWebhook || selectedRelayMode() != loadRelayMode()
+            webhookEdit.text.toString().trim() != savedWebhook ||
+                SenderFilter.serialize(sendersEdit.text.toString()) != savedSenders ||
+                selectedRelayMode() != loadRelayMode()
         updateSaveButton(hasUnsavedChanges)
         if (hasUnsavedChanges) {
             showStatus(
@@ -196,10 +211,13 @@ class MainActivity : Activity() {
             return
         }
         val relayMode = selectedRelayMode()
+        val senders = SenderFilter.serialize(sendersEdit.text.toString())
         prefs.edit()
             .putString(RelaySettings.WEBHOOK_KEY, webhook)
             .putString(RelaySettings.MODE_KEY, relayMode.name)
+            .putString(RelaySettings.SENDERS_KEY, senders)
             .apply()
+        sendersEdit.setText(senders)
         updateSaveButton(false)
         updateStatus()
         statusText.animate().alpha(0.55f).setDuration(90).withEndAction {
@@ -301,6 +319,17 @@ class MainActivity : Activity() {
         statusText.setText(titleResource)
         statusText.setTextColor(textColor)
         statusText.setBackgroundResource(backgroundResource)
+        statusText.setCompoundDrawablesWithIntrinsicBounds(
+            when (textColorResource) {
+                R.color.success_text -> R.drawable.ic_status_dot_success
+                R.color.error_text -> R.drawable.ic_status_dot_error
+                R.color.info_text -> R.drawable.ic_status_dot_info
+                else -> R.drawable.ic_status_dot_warning
+            },
+            0,
+            0,
+            0
+        )
     }
 
     private fun updateSaveButton(hasUnsavedChanges: Boolean) {

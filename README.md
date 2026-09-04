@@ -15,10 +15,11 @@ When an SMS arrives, the app:
 
 1. Receives the Android `SMS_RECEIVED` broadcast.
 2. Reconstructs the complete body of multipart messages.
-3. Applies the saved relay mode: all incoming messages, or OTP messages only.
-4. Resolves the receiving SIM number when Android and the carrier expose it.
-5. Formats the receiving number, sender, timestamp, and original body.
-6. Sends the message to a configured Google Chat webhook.
+3. Applies the optional sender allow-list; a blank list accepts every sender.
+4. Applies the saved relay mode: all incoming messages, or OTP messages only.
+5. Resolves the receiving SIM number when Android and the carrier expose it.
+6. Formats the receiving number, sender, timestamp, and original body.
+7. Sends the message to a configured Google Chat webhook.
 
 In OTP-only mode, the parser acts only as a filter. In both modes, the full original SMS body is
 forwarded unchanged.
@@ -52,8 +53,10 @@ A prebuilt debug APK from the checked-in source is available at
 uses the Android debug signing key and is not a production release artifact; build from source when
 independent verification is required.
 
-Open the app, grant the requested permissions, enter a Google Chat webhook URL, choose **OTP
-messages only** or **All incoming messages** from the dropdown, and tap **Save configuration**.
+Open the app, grant the requested permissions, enter a Google Chat webhook URL, optionally enter
+one or more allowed senders separated by commas, choose **OTP messages only** or **All incoming
+messages** from the dropdown, and tap **Save configuration**. Leave the sender field blank to relay
+messages from every sender.
 
 ## Prerequisites
 
@@ -111,6 +114,7 @@ Android SMS broadcast
         v
    SmsReceiver
         |
+        +--> SenderFilter
         +--> RelayMode --> OtpParser when required
         +--> SimNumberResolver
         +--> SmsFormatter
@@ -119,11 +123,12 @@ Android SMS broadcast
 
 | Component           | Responsibility                                                            |
 |---------------------|---------------------------------------------------------------------------|
-| `MainActivity`      | Requests permissions and stores the webhook and relay-mode configuration. |
+| `MainActivity`      | Requests permissions and stores webhook, sender, and relay-mode configuration. |
 | `AboutPrivacyActivity` | Explains storage, forwarding, permissions, and user controls.          |
 | `LastRelayStatus`   | Stores and restores the most recent result, sender, and timestamp.         |
 | `SmsReceiver`       | Coordinates SMS reconstruction, filtering, formatting, and delivery.      |
 | `RelayMode`         | Restores the saved mode and decides whether an SMS should be forwarded.   |
+| `SenderFilter`      | Parses the optional sender allow-list and matches originating addresses.  |
 | `OtpParser`         | Determines whether an SMS looks like an OTP message.                      |
 | `SimNumberResolver` | Reads the receiving SIM number when the platform exposes it.              |
 | `SmsFormatter`      | Produces the Google Chat message text.                                    |
@@ -164,7 +169,7 @@ The compact configuration card identifies Google Chat as the destination provide
 masked by default and has an explicit Show/Hide control. The relay-mode dropdown shows contextual
 guidance and a dedicated privacy warning for **All incoming messages**. The header badge reports
 `Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, or `Failed` as configuration and test
-state changes. Editing the webhook or mode does not affect active reception until **Save
+state changes. Editing the webhook, sender list, or mode does not affect active reception until **Save
 configuration** is tapped; when the form matches persisted settings, that action becomes a dimmed,
 disabled **Saved** button. **Test connection** remains a separate secondary action. Both actions use
 equal-width 48dp controls with complete rounded backgrounds and clearance from the card edge.
@@ -242,7 +247,7 @@ Android test package without executing device test cases.
 
 - Use this app only on an authorized, dedicated QA device.
 - Treat the Google Chat webhook URL as a credential and do not commit it to Git.
-- The webhook, relay mode, and latest relay result metadata are stored locally in the app's private
+- The webhook, relay mode, optional sender list, and latest relay result metadata are stored locally in the app's private
   preferences. SMS bodies and OTPs are not retained locally.
 - SMS content is sent according to the saved relay mode. **All incoming messages** mode forwards
   non-OTP messages too.
