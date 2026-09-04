@@ -2,20 +2,23 @@ package com.mridul.telcootprelay
 
 import android.app.Activity
 import android.os.Bundle
-import android.view.View
 import android.widget.FrameLayout
+import com.mridul.telcootprelay.databinding.ActivityAboutPrivacyBinding
 
 class AboutPrivacyActivity : Activity() {
+    private lateinit var binding: ActivityAboutPrivacyBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_about_privacy)
+        binding = ActivityAboutPrivacyBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val content = findViewById<View>(R.id.about_privacy_content)
+        val content = binding.aboutPrivacyContent
         val maxWidth = resources.getDimensionPixelSize(R.dimen.content_max_width)
         content.layoutParams = (content.layoutParams as FrameLayout.LayoutParams).apply {
             width = minOf(resources.displayMetrics.widthPixels, maxWidth)
         }
 
-        findViewById<View>(R.id.back_button).setOnClickListener { finish() }
+        binding.backButton.setOnClickListener { finish() }
     }
 }

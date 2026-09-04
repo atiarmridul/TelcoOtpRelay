@@ -23,26 +23,28 @@ import androidx.annotation.ColorRes
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
+import com.mridul.telcootprelay.databinding.ActivityMainBinding
 
 class MainActivity : Activity() {
     private val prefs by lazy {
         getSharedPreferences(RelaySettings.PREFERENCES_NAME, MODE_PRIVATE)
     }
 
-    private lateinit var webhookEdit: EditText
-    private lateinit var sendersEdit: EditText
-    private lateinit var relayModeSpinner: Spinner
-    private lateinit var modeDescription: TextView
-    private lateinit var allMessagesPrivacyWarning: TextView
-    private lateinit var statusCard: View
-    private lateinit var statusText: TextView
-    private lateinit var webhookVisibilityButton: ImageButton
-    private lateinit var saveButton: Button
-    private lateinit var lastRelayIcon: TextView
-    private lateinit var lastRelayStatus: TextView
-    private lateinit var lastRelaySender: TextView
-    private lateinit var lastRelayTime: TextView
-    private lateinit var lastRelayDetail: TextView
+    private lateinit var binding: ActivityMainBinding
+    private val webhookEdit: EditText get() = binding.webhookEdit
+    private val sendersEdit: EditText get() = binding.sendersEdit
+    private val relayModeSpinner: Spinner get() = binding.relayModeSpinner
+    private val modeDescription: TextView get() = binding.modeDescription
+    private val allMessagesPrivacyWarning: TextView get() = binding.allMessagesPrivacyWarning
+    private val statusCard: View get() = binding.statusCard
+    private val statusText: TextView get() = binding.statusText
+    private val webhookVisibilityButton: ImageButton get() = binding.webhookVisibilityButton
+    private val saveButton: Button get() = binding.saveButton
+    private val lastRelayIcon: TextView get() = binding.lastRelayIcon
+    private val lastRelayStatus: TextView get() = binding.lastRelayStatus
+    private val lastRelaySender: TextView get() = binding.lastRelaySender
+    private val lastRelayTime: TextView get() = binding.lastRelayTime
+    private val lastRelayDetail: TextView get() = binding.lastRelayDetail
     private var isWebhookVisible = false
     private val relayStatusPreferenceListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -53,8 +55,9 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        bindViews()
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        configureViews()
         configureContentWidth()
         configureForm()
         observeUnsavedChanges()
@@ -74,26 +77,12 @@ class MainActivity : Activity() {
         super.onStop()
     }
 
-    private fun bindViews() {
-        webhookEdit = findViewById(R.id.webhook_edit)
-        sendersEdit = findViewById(R.id.senders_edit)
-        webhookVisibilityButton = findViewById(R.id.webhook_visibility_button)
-        relayModeSpinner = findViewById(R.id.relay_mode_spinner)
-        modeDescription = findViewById(R.id.mode_description)
-        allMessagesPrivacyWarning = findViewById(R.id.all_messages_privacy_warning)
-        statusCard = findViewById(R.id.status_card)
-        statusText = findViewById(R.id.status_text)
-        lastRelayIcon = findViewById(R.id.last_relay_icon)
-        lastRelayStatus = findViewById(R.id.last_relay_status)
-        lastRelaySender = findViewById(R.id.last_relay_sender)
-        lastRelayTime = findViewById(R.id.last_relay_time)
-        lastRelayDetail = findViewById(R.id.last_relay_detail)
-        findViewById<TextView>(R.id.version_text).text =
+    private fun configureViews() {
+        binding.versionText.text =
             getString(R.string.app_version, installedVersionName())
-        saveButton = findViewById(R.id.save_button)
         saveButton.setOnClickListener { saveSettings() }
         updateSaveButton(false)
-        findViewById<Button>(R.id.test_button).setOnClickListener { sendTest() }
+        binding.testButton.setOnClickListener { sendTest() }
         webhookVisibilityButton.setOnClickListener {
             setWebhookVisibility(!isWebhookVisible)
         }
@@ -101,12 +90,12 @@ class MainActivity : Activity() {
         val openPrivacy = View.OnClickListener {
             startActivity(Intent(this, AboutPrivacyActivity::class.java))
         }
-        findViewById<View>(R.id.privacy_card).setOnClickListener(openPrivacy)
-        findViewById<TextView>(R.id.privacy_link).setOnClickListener(openPrivacy)
+        binding.privacyCard.setOnClickListener(openPrivacy)
+        binding.privacyLink.setOnClickListener(openPrivacy)
     }
 
     private fun configureContentWidth() {
-        val content = findViewById<View>(R.id.content)
+        val content = binding.content
         val maxWidth = resources.getDimensionPixelSize(R.dimen.content_max_width)
         content.layoutParams = (content.layoutParams as FrameLayout.LayoutParams).apply {
             width = minOf(resources.displayMetrics.widthPixels, maxWidth)
