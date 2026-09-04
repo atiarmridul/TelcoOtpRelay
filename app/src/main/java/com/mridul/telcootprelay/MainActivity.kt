@@ -19,9 +19,6 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.Spinner
 import android.widget.TextView
-import androidx.annotation.ColorRes
-import androidx.annotation.DrawableRes
-import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import com.mridul.telcootprelay.databinding.ActivityMainBinding
 
@@ -160,20 +157,16 @@ class MainActivity : Activity() {
     private fun showUnsavedIfNeeded() {
         val savedWebhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "").orEmpty()
         val savedSenders = prefs.getString(RelaySettings.SENDERS_KEY, "").orEmpty()
-        val hasUnsavedChanges =
-            webhookEdit.text.toString().trim() != savedWebhook ||
-                SenderFilter.serialize(sendersEdit.text.toString()) != savedSenders ||
-                selectedRelayMode() != loadRelayMode()
-        updateSaveButton(hasUnsavedChanges)
-        if (hasUnsavedChanges) {
-            showStatus(
-                R.string.status_unsaved_title,
-                R.drawable.bg_status_warning,
-                R.color.warning_text
-            )
-        } else {
-            updateStatus()
-        }
+        val formState = ConfigurationState.edited(
+            currentWebhook = webhookEdit.text.toString(),
+            currentSenders = sendersEdit.text.toString(),
+            currentMode = selectedRelayMode(),
+            savedWebhook = savedWebhook,
+            savedSenders = savedSenders,
+            savedMode = loadRelayMode()
+        )
+        updateSaveButton(formState.hasUnsavedChanges)
+        renderStatus(formState.status)
     }
 
     private fun updateModeDescription() {
@@ -192,11 +185,7 @@ class MainActivity : Activity() {
         val webhook = webhookEdit.text.toString().trim()
         if (!webhook.startsWith("https://chat.googleapis.com/")) {
             webhookEdit.error = getString(R.string.invalid_webhook)
-            showStatus(
-                R.string.status_invalid_title,
-                R.drawable.bg_status_error,
-                R.color.error_text
-            )
+            renderStatus(ConfigurationStatus.INVALID)
             return
         }
         val relayMode = selectedRelayMode()
@@ -218,18 +207,10 @@ class MainActivity : Activity() {
         val webhook = webhookEdit.text.toString().trim()
         if (webhook.isBlank()) {
             webhookEdit.error = getString(R.string.enter_webhook)
-            showStatus(
-                R.string.status_setup_title,
-                R.drawable.bg_status_error,
-                R.color.error_text
-            )
+            renderStatus(ConfigurationStatus.MISSING_WEBHOOK)
             return
         }
-        showStatus(
-            R.string.status_testing_title,
-            R.drawable.bg_status_info,
-            R.color.info_text
-        )
+        renderStatus(ConfigurationStatus.TESTING)
         Thread {
             val ok = ChatSender.sendWithRetry(
                 webhook,
@@ -241,28 +222,16 @@ class MainActivity : Activity() {
                 )
             )
             runOnUiThread {
-                showStatus(
-                    if (ok) R.string.status_test_success_title else R.string.status_test_failed_title,
-                    if (ok) R.drawable.bg_status_success else R.drawable.bg_status_error,
-                    if (ok) R.color.success_text else R.color.error_text
+                renderStatus(
+                    if (ok) ConfigurationStatus.CONNECTED else ConfigurationStatus.FAILED
                 )
             }
         }.start()
     }
 
     private fun updateStatus() {
-        if (prefs.getString(RelaySettings.WEBHOOK_KEY, "").isNullOrBlank()) {
-            showStatus(
-                R.string.status_setup_title,
-                R.drawable.bg_status_warning,
-                R.color.warning_text
-            )
-            return
-        }
-        showStatus(
-            R.string.status_active_title,
-            R.drawable.bg_status_success,
-            R.color.success_text
+        renderStatus(
+            ConfigurationState.persisted(prefs.getString(RelaySettings.WEBHOOK_KEY, ""))
         )
     }
 
@@ -299,11 +268,37 @@ class MainActivity : Activity() {
         lastRelayDetail.visibility = if (delivered) View.GONE else View.VISIBLE
     }
 
-    private fun showStatus(
-        @StringRes titleResource: Int,
-        @DrawableRes backgroundResource: Int,
-        @ColorRes textColorResource: Int
-    ) {
+    private fun renderStatus(status: ConfigurationStatus) {
+        val titleResource = when (status) {
+            ConfigurationStatus.SETUP,
+            ConfigurationStatus.MISSING_WEBHOOK -> R.string.status_setup_title
+            ConfigurationStatus.ACTIVE -> R.string.status_active_title
+            ConfigurationStatus.UNSAVED -> R.string.status_unsaved_title
+            ConfigurationStatus.INVALID -> R.string.status_invalid_title
+            ConfigurationStatus.TESTING -> R.string.status_testing_title
+            ConfigurationStatus.CONNECTED -> R.string.status_test_success_title
+            ConfigurationStatus.FAILED -> R.string.status_test_failed_title
+        }
+        val backgroundResource = when (status) {
+            ConfigurationStatus.SETUP,
+            ConfigurationStatus.UNSAVED -> R.drawable.bg_status_warning
+            ConfigurationStatus.ACTIVE,
+            ConfigurationStatus.CONNECTED -> R.drawable.bg_status_success
+            ConfigurationStatus.TESTING -> R.drawable.bg_status_info
+            ConfigurationStatus.MISSING_WEBHOOK,
+            ConfigurationStatus.INVALID,
+            ConfigurationStatus.FAILED -> R.drawable.bg_status_error
+        }
+        val textColorResource = when (status) {
+            ConfigurationStatus.SETUP,
+            ConfigurationStatus.UNSAVED -> R.color.warning_text
+            ConfigurationStatus.ACTIVE,
+            ConfigurationStatus.CONNECTED -> R.color.success_text
+            ConfigurationStatus.TESTING -> R.color.info_text
+            ConfigurationStatus.MISSING_WEBHOOK,
+            ConfigurationStatus.INVALID,
+            ConfigurationStatus.FAILED -> R.color.error_text
+        }
         val textColor = ContextCompat.getColor(this, textColorResource)
         statusText.setText(titleResource)
         statusText.setTextColor(textColor)

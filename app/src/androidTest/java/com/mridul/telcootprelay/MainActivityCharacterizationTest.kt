@@ -15,7 +15,6 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -65,11 +64,15 @@ class MainActivityCharacterizationTest {
     fun selectingAllMessagesShowsItsExistingDescriptionAndPrivacyWarning() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
-                activity.findViewById<Spinner>(R.id.relay_mode_spinner).setSelection(1)
-            }
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                val spinner = activity.findViewById<Spinner>(R.id.relay_mode_spinner)
+                spinner.setSelection(1)
+                spinner.onItemSelectedListener?.onItemSelected(
+                    spinner,
+                    spinner.selectedView,
+                    1,
+                    spinner.getItemIdAtPosition(1)
+                )
 
-            scenario.onActivity { activity ->
                 assertEquals(
                     "Relays every non-empty SMS, including personal messages.",
                     activity.findViewById<TextView>(R.id.mode_description).text.toString()
