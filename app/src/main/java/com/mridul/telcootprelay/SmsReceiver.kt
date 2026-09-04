@@ -29,51 +29,19 @@ class SmsReceiver : BroadcastReceiver() {
                     RelaySettings.PREFERENCES_NAME,
                     Context.MODE_PRIVATE
                 )
-                val webhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "")
-                    ?.trim()
-                    .orEmpty()
-                if (webhook.isBlank()) return@execute
-
-                val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-                if (messages.isEmpty()) return@execute
-
-                // Reconstruct the complete multipart SMS exactly once.
-                val body = messages.joinToString(separator = "") { it.messageBody.orEmpty() }
-                if (body.isBlank()) return@execute
-
-                val sender = messages.asSequence()
-                    .mapNotNull { it.originatingAddress?.trim()?.takeIf(String::isNotEmpty) }
-                    .firstOrNull()
-                    ?: "Unknown"
-
-                if (!SenderFilter.allows(
-                        sender,
-                        prefs.getString(RelaySettings.SENDERS_KEY, null)
-                    )
-                ) return@execute
-
-                val relayMode = RelayMode.fromStored(
-                    prefs.getString(RelaySettings.MODE_KEY, null)
+                val configuration = RelayConfiguration(
+                    webhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "")?.trim().orEmpty(),
+                    mode = RelayMode.fromStored(prefs.getString(RelaySettings.MODE_KEY, null)),
+                    allowedSenders = prefs.getString(RelaySettings.SENDERS_KEY, null)
                 )
-                if (!relayMode.shouldRelay(body)) return@execute
+                if (configuration.webhook.isBlank()) return@execute
 
-                val timestamp = messages.minOfOrNull { it.timestampMillis }
-                    ?: System.currentTimeMillis()
+                val sms = SmsBroadcastParser.parse(intent) ?: return@execute
+                val request = RelayProcessor.prepare(configuration, sms) {
+                    SimNumberResolver.resolve(appContext, sms.subscriptionId)
+                } ?: return@execute
 
-                val subId = intent.getIntExtra(
-                    SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
-                    SubscriptionManager.INVALID_SUBSCRIPTION_ID
-                ).takeIf { it != SubscriptionManager.INVALID_SUBSCRIPTION_ID }
-
-                val receivingNumber = SimNumberResolver.resolve(appContext, subId)
-                val chatMessage = SmsFormatter.format(
-                    receivingNumber = receivingNumber,
-                    sender = sender,
-                    timestampMillis = timestamp,
-                    body = body
-                )
-
-                val result = if (ChatSender.sendWithRetry(webhook, chatMessage)) {
+                val result = if (ChatSender.sendWithRetry(request.webhook, request.message)) {
                     RelayDeliveryResult.DELIVERED
                 } else {
                     RelayDeliveryResult.FAILED
@@ -81,8 +49,8 @@ class SmsReceiver : BroadcastReceiver() {
                 LastRelayStore.save(
                     preferences = prefs,
                     result = result,
-                    sender = sender,
-                    timestampMillis = timestamp
+                    sender = request.sender,
+                    timestampMillis = request.timestampMillis
                 )
             } finally {
                 pending.finish()
