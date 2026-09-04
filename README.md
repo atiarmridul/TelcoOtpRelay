@@ -219,8 +219,8 @@ Run connected Android tests when a device or emulator is available:
 
 The project includes JVM unit tests for relay-mode selection, OTP parsing, message formatting, and
 last-relay status parsing and display formatting.
-Instrumentation coverage has not yet been added, so the connected test task currently validates the
-Android test package without executing device test cases.
+Focused instrumentation characterization tests protect the main configuration states, privacy
+navigation, webhook masking, and action-control dimensions.
 
 ## Battery-Efficient Design
 

@@ -3,9 +3,10 @@
 ## Current Status
 
 The repository contains JVM unit tests for relay-mode selection, OTP classification, extraction,
-sender allow-listing, outbound message formatting, and last-relay status parsing and timestamp formatting. The
-connected-test task is configured by the Android plugin, but there are no instrumentation test
-classes yet.
+sender allow-listing, outbound message formatting, and last-relay status parsing and timestamp
+formatting. Android instrumentation characterization tests protect the main screen's initial state,
+mode-specific privacy warning, action-control dimensions, webhook masking, and About & Privacy
+navigation.
 
 ## Automated Verification
 
