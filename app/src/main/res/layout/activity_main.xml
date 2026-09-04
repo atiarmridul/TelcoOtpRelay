@@ -19,9 +19,9 @@
             android:layout_gravity="top|center_horizontal"
             android:orientation="vertical"
             android:paddingStart="@dimen/screen_horizontal_padding"
-            android:paddingTop="@dimen/screen_top_padding"
+            android:paddingTop="10dp"
             android:paddingEnd="@dimen/screen_horizontal_padding"
-            android:paddingBottom="@dimen/screen_bottom_padding">
+            android:paddingBottom="8dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -43,29 +43,11 @@
                     android:orientation="vertical"
                     android:paddingStart="12dp">
 
-                    <LinearLayout
+                    <TextView
+                        style="@style/Widget.SmsRelay.HeaderTitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <TextView
-                            style="@style/Widget.SmsRelay.HeaderTitle"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/app_name" />
-
-                        <TextView
-                            android:id="@+id/status_text"
-                            style="@style/Widget.SmsRelay.StatusBadge"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:background="@drawable/bg_status_warning"
-                            android:text="@string/status_setup_title"
-                            android:textColor="@color/warning_text" />
-                    </LinearLayout>
+                        android:text="@string/app_name" />
 
                     <TextView
                         style="@style/Widget.SmsRelay.HeaderSubtitle"
@@ -73,24 +55,34 @@
                         android:layout_height="wrap_content"
                         android:text="@string/app_subtitle" />
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/status_text"
+                    style="@style/Widget.SmsRelay.StatusBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_status_warning"
+                    android:text="@string/status_setup_title"
+                    android:textColor="@color/warning_text" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/status_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_status_info"
                 android:elevation="2dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="14dp"
+                android:padding="10dp"
                 android:visibility="gone">
 
                 <TextView
                     android:id="@+id/last_relay_icon"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:background="@drawable/bg_status_icon_circle"
                     android:gravity="center"
                     android:textSize="20sp"
@@ -99,7 +91,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
@@ -154,11 +146,11 @@
                 android:id="@+id/settings_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_card"
                 android:elevation="2dp"
                 android:orientation="vertical"
-                android:padding="14dp">
+                android:padding="12dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -177,30 +169,15 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
-                        android:text="@string/destination_section_label" />
+                        android:text="@string/destination_title" />
                 </LinearLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_input"
-                    android:drawableStart="@drawable/ic_google_chat"
-                    android:drawablePadding="12dp"
-                    android:gravity="center_vertical"
-                    android:minHeight="@dimen/control_min_height"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:text="@string/destination_provider_google_chat"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp" />
 
                 <TextView
                     style="@style/Widget.SmsRelay.SectionTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="6dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
                     android:text="@string/webhook_label" />
 
                 <FrameLayout
@@ -228,19 +205,11 @@
                         android:padding="12dp" />
                 </FrameLayout>
 
-                <TextView
-                    style="@style/Widget.SmsRelay.SupportingText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/destination_description"
-                    android:textSize="12sp" />
-
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginBottom="10dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
                     android:background="@color/divider" />
 
                 <LinearLayout
@@ -267,7 +236,7 @@
                     android:id="@+id/relay_mode_spinner"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:background="@drawable/bg_spinner"
                     android:minHeight="@dimen/control_min_height"
                     android:paddingStart="4dp"
@@ -278,16 +247,43 @@
                     style="@style/Widget.SmsRelay.SupportingText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
+                    android:layout_marginTop="4dp"
+                    android:textSize="12sp" />
+
+                <TextView
+                    style="@style/Widget.SmsRelay.SectionTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/senders_label" />
+
+                <EditText
+                    android:id="@+id/senders_edit"
+                    style="@style/Widget.SmsRelay.Input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/senders_hint"
+                    android:importantForAutofill="no"
+                    android:inputType="text"
+                    android:maxLines="2"
+                    android:minLines="1" />
+
+                <TextView
+                    style="@style/Widget.SmsRelay.SupportingText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/senders_description"
                     android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/all_messages_privacy_warning"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
+                    android:layout_marginTop="8dp"
                     android:background="@drawable/bg_status_warning"
-                    android:padding="12dp"
+                    android:padding="8dp"
                     android:text="@string/all_messages_privacy_warning"
                     android:textColor="@color/warning_text"
                     android:textSize="13sp"
@@ -296,8 +292,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:layout_marginBottom="4dp"
+                    android:layout_marginTop="10dp"
                     android:orientation="horizontal">
 
                     <androidx.appcompat.widget.AppCompatButton
@@ -306,8 +301,6 @@
                         android:layout_width="0dp"
                         android:layout_height="@dimen/control_min_height"
                         android:layout_weight="1"
-                        android:drawableStart="@drawable/ic_send_blue"
-                        android:drawablePadding="4dp"
                         android:gravity="center"
                         android:maxLines="1"
                         android:text="@string/test_connection"
@@ -327,8 +320,6 @@
                         android:layout_width="0dp"
                         android:layout_height="@dimen/control_min_height"
                         android:layout_weight="1"
-                        android:drawableStart="@drawable/ic_save_white"
-                        android:drawablePadding="4dp"
                         android:gravity="center"
                         android:maxLines="1"
                         android:text="@string/save_configuration"
@@ -344,23 +335,24 @@
                 android:id="@+id/privacy_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_privacy_card"
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?android:attr/selectableItemBackground"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:padding="12dp">
+                android:minHeight="48dp"
+                android:padding="8dp">
 
                 <FrameLayout
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
                     android:background="@drawable/bg_privacy_icon_circle">
 
                     <ImageView
-                        android:layout_width="22dp"
-                        android:layout_height="22dp"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
                         android:layout_gravity="center"
                         android:contentDescription="@null"
                         android:src="@drawable/ic_lock"
@@ -370,7 +362,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
+                    android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:orientation="vertical">
 
@@ -398,16 +390,12 @@
                     android:src="@drawable/ic_chevron_right" />
             </LinearLayout>
 
-            <Space
-                android:layout_width="1dp"
-                android:layout_height="6dp" />
-
             <TextView
                 android:id="@+id/version_text"
                 style="@style/Widget.SmsRelay.Footer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="4dp" />
         </LinearLayout>
     </FrameLayout>
 </ScrollView>

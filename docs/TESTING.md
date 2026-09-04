@@ -3,7 +3,7 @@
 ## Current Status
 
 The repository contains JVM unit tests for relay-mode selection, OTP classification, extraction,
-outbound message formatting, and last-relay status parsing and timestamp formatting. The
+sender allow-listing, outbound message formatting, and last-relay status parsing and timestamp formatting. The
 connected-test task is configured by the Android plugin, but there are no instrumentation test
 classes yet.
 
@@ -74,6 +74,14 @@ Current `RelayMode` coverage includes:
 - `ALL_MESSAGES` mode accepts ordinary non-OTP messages
 - Blank bodies are rejected in both modes
 
+Current `SenderFilter` coverage includes:
+
+- Empty configuration allowing every sender
+- Multiple configured senders and rejection of non-matches
+- Case-insensitive branded-sender matching
+- Phone-number formatting normalization
+- Comma, semicolon, and newline parsing
+
 Current `LastRelayStatus` coverage includes:
 
 - Delivered and failed stored values
@@ -114,7 +122,8 @@ Priority cases:
   and clearance from the configuration-card border
 - Secondary button outline and primary button fill remain intact when disabled, enabled, pressed,
   and rendered with accessibility font scaling
-- Unsaved-change status after editing either configuration field
+- Unsaved-change status after editing any configuration field
+- Sender allow-list persistence and unsaved-change status
 - Save action is dimmed and disabled as **Saved** until a configuration value changes
 - Version footer matches the installed package version
 - Full configuration is visible without scrolling at standard phone dimensions
@@ -132,13 +141,16 @@ Avoid real SMS bodies and active webhook credentials in test fixtures.
 |--------------------------------------|----------------------------------------------------------|
 | First launch                         | Permission explanation appears and webhook can be saved. |
 | Existing configuration without mode  | OTP-only is selected and remains active.                 |
+| Existing configuration without senders | Messages from every sender remain eligible.            |
+| Blank sender field                    | Messages from every sender remain eligible.              |
+| Multiple allowed senders              | Only messages from listed originating addresses qualify. |
 | OTP keyword plus code                | Full original message is forwarded.                      |
 | Standalone six-digit code            | Full original message is forwarded.                      |
 | Multipart OTP SMS                    | Parts are combined in order and forwarded once.          |
 | Non-OTP message                      | Nothing is sent.                                         |
 | Non-OTP message in **All incoming messages** mode | Full original message is forwarded.            |
 | Change dropdown without saving       | Previously saved mode remains active.                    |
-| Edit either configuration field      | Header badge shows **Unsaved** and Save becomes enabled. |
+| Edit any configuration field         | Header badge shows **Unsaved** and Save becomes enabled. |
 | Restore the persisted form values    | Header badge returns to **Active** and Save shows **Saved**. |
 | Test a valid webhook                  | Badge transitions through **Testing** to **Connected** or **Failed**. |
 | No latest-relay metadata              | Latest-relay card is hidden without leaving empty space. |

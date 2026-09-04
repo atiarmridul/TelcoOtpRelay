@@ -17,4 +17,5 @@ object RelaySettings {
     const val PREFERENCES_NAME = "relay"
     const val WEBHOOK_KEY = "webhook"
     const val MODE_KEY = "relay_mode"
+    const val SENDERS_KEY = "allowed_senders"
 }
