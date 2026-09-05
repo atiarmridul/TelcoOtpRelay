@@ -38,7 +38,7 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }
 
-val packageSmsRelayDebugApk by tasks.registering(Copy::class) {
+val packageSmsRelayDebugApk = tasks.register<Copy>("packageSmsRelayDebugApk") {
     dependsOn("packageDebug")
     from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     into(layout.buildDirectory.dir("outputs/distribution"))

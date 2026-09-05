@@ -35,8 +35,8 @@ Preserve these product invariants unless the user explicitly changes the require
 
 ## Technology and Compatibility
 
-- Android Gradle Plugin 9.3.2 with built-in Kotlin support
-- Gradle wrapper 9.5.0
+- Android Gradle Plugin 9.4.0 with built-in Kotlin support
+- Gradle wrapper 9.6.0
 - Android application module `:app`
 - Namespace and application ID: `com.mridul.telcootprelay`
 - Minimum SDK 26
