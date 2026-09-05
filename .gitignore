@@ -18,6 +18,10 @@ local.properties
 .idea/deploymentTargetDropDown.xml
 .idea/deviceManager.xml
 
+# Local editor and MCP configuration
+.cursor/
+.mcp.json
+
 # Native build output
 .externalNativeBuild/
 .cxx/
