@@ -26,8 +26,8 @@ android {
 }
 
 dependencies {
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.appcompat:appcompat:1.8.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
