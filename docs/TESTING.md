@@ -4,9 +4,10 @@
 
 The repository contains JVM unit tests for relay-mode selection, OTP classification, extraction,
 sender allow-listing, outbound message formatting, and last-relay status parsing and timestamp
-formatting. Android instrumentation characterization tests protect the main screen's initial state,
-mode-specific privacy warning, action-control dimensions, webhook masking, and About & Privacy
-navigation.
+formatting. Android instrumentation characterization tests protect the main screen's initial and
+persisted states, mode-specific privacy warning, latest-relay privacy boundary, action-control
+dimensions, webhook masking and visibility, About & Privacy navigation, requested permissions, and
+the SMS receiver's manifest and action contract.
 
 ## Automated Verification
 

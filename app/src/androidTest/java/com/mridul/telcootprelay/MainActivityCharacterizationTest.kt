@@ -106,6 +106,105 @@ class MainActivityCharacterizationTest {
     }
 
     @Test
+    fun persistedConfigurationRestoresExistingValuesAndActiveState() {
+        preferences().edit()
+            .putString(RelaySettings.WEBHOOK_KEY, "https://chat.googleapis.com/synthetic")
+            .putString(RelaySettings.SENDERS_KEY, "BANK-OTP")
+            .putString(RelaySettings.MODE_KEY, RelayMode.ALL_MESSAGES.name)
+            .commit()
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(
+                    "https://chat.googleapis.com/synthetic",
+                    activity.findViewById<EditText>(R.id.webhook_edit).text.toString()
+                )
+                assertEquals(
+                    "BANK-OTP",
+                    activity.findViewById<EditText>(R.id.senders_edit).text.toString()
+                )
+                assertEquals(1, activity.findViewById<Spinner>(R.id.relay_mode_spinner).selectedItemPosition)
+                assertEquals("Active", activity.findViewById<TextView>(R.id.status_text).text.toString())
+                assertFalse(activity.findViewById<Button>(R.id.save_button).isEnabled)
+            }
+        }
+    }
+
+    @Test
+    fun latestRelayShowsMetadataWithoutSmsBodyOrOtp() {
+        preferences().edit()
+            .putString(LastRelayStore.RESULT_KEY, RelayDeliveryResult.DELIVERED.name)
+            .putString(LastRelayStore.SENDER_KEY, "TEST-SENDER")
+            .putLong(LastRelayStore.TIMESTAMP_KEY, 0L)
+            .commit()
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.status_card).visibility)
+                assertEquals(
+                    "Last message delivered",
+                    activity.findViewById<TextView>(R.id.last_relay_status).text.toString()
+                )
+                assertEquals(
+                    "From: TEST-SENDER",
+                    activity.findViewById<TextView>(R.id.last_relay_sender).text.toString()
+                )
+                val visibleMetadata = listOf(
+                    activity.findViewById<TextView>(R.id.last_relay_status).text,
+                    activity.findViewById<TextView>(R.id.last_relay_sender).text,
+                    activity.findViewById<TextView>(R.id.last_relay_time).text
+                ).joinToString(" ")
+                assertFalse(visibleMetadata.contains("482193"))
+                assertFalse(visibleMetadata.contains("Your code"))
+            }
+        }
+    }
+
+    @Test
+    fun failedRelayRetainsExistingFailureDetail() {
+        preferences().edit()
+            .putString(LastRelayStore.RESULT_KEY, RelayDeliveryResult.FAILED.name)
+            .putString(LastRelayStore.SENDER_KEY, "TEST-SENDER")
+            .putLong(LastRelayStore.TIMESTAMP_KEY, 0L)
+            .commit()
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(
+                    "Last delivery failed",
+                    activity.findViewById<TextView>(R.id.last_relay_status).text.toString()
+                )
+                assertEquals(
+                    View.VISIBLE,
+                    activity.findViewById<View>(R.id.last_relay_detail).visibility
+                )
+                assertEquals(
+                    "Automatic retries exhausted.",
+                    activity.findViewById<TextView>(R.id.last_relay_detail).text.toString()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun webhookVisibilityControlKeepsExistingToggleBehavior() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val webhook = activity.findViewById<EditText>(R.id.webhook_edit)
+                val toggle = activity.findViewById<ImageButton>(R.id.webhook_visibility_button)
+
+                toggle.performClick()
+                assertEquals(null, webhook.transformationMethod)
+                assertEquals("Hide webhook URL", toggle.contentDescription.toString())
+
+                toggle.performClick()
+                assertTrue(webhook.transformationMethod is PasswordTransformationMethod)
+                assertEquals("Show webhook URL", toggle.contentDescription.toString())
+            }
+        }
+    }
+
+    @Test
     fun privacyCardOpensTheExistingAboutAndPrivacyScreen() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
