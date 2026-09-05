@@ -14,7 +14,9 @@ This file records the important decisions visible in the current implementation.
 - **Status:** Accepted
 - **Decision:** Use one Android application module with small Kotlin components and minimal AndroidX dependencies.
 - **Reason:** The application has one narrow workflow and does not currently justify multiple modules or a dependency-injection framework.
-- **Consequences:** The code is easy to navigate, while direct singleton and platform dependencies make some integration behavior harder to isolate in tests.
+- **Consequences:** The code is easy to navigate. Pure state and relay-processing boundaries plus
+  injectable delivery seams cover most behavior with JVM tests, while Android broadcast extraction
+  and lifecycle behavior still require device tests.
 
 ## ADR-003: Use OTP Parsing Only as a Gate
 

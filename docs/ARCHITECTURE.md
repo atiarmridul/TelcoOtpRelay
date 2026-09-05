@@ -10,8 +10,9 @@ SMS Relay is a single-module Android application built around the `SMS_RECEIVED`
 flowchart TD
     A[Android SMS_RECEIVED broadcast] --> B[SmsReceiver]
     B --> C[Load webhook, sender list, and RelayMode from SharedPreferences]
-    C --> D[Reconstruct SMS parts]
-    D --> S{SenderFilter accepts sender?}
+    C --> D[SmsBroadcastParser reconstructs SMS parts]
+    D --> P[RelayProcessor]
+    P --> S{SenderFilter accepts sender?}
     S -- No --> F
     S -- Yes --> E{RelayMode accepts message?}
     E -- No --> F[Finish broadcast]
@@ -26,7 +27,8 @@ flowchart TD
 
 ### `MainActivity`
 
-The launcher activity provides a focused, card-based configuration surface. It:
+The launcher activity uses View Binding over the existing XML layout and provides a focused,
+card-based configuration surface. It:
 
 - Requests `RECEIVE_SMS` and `READ_PHONE_NUMBERS` at runtime
 - Validates that the webhook uses the Google Chat HTTPS prefix
@@ -55,6 +57,9 @@ incoming SMS. The latest-relay card represents that delivery record and is indep
 the preference listener. This separation avoids duplicating active-state content and keeps SMS
 metadata out of transient configuration feedback.
 
+`ConfigurationState` calculates persisted, active, and unsaved form states without depending on
+Android views. `MainActivity` maps those states onto the existing badge resources.
+
 ### `AboutPrivacyActivity`
 
 This read-only activity explains local storage, Google Chat transmission, permissions, and user
@@ -65,20 +70,31 @@ the field selection alone does not update preferences; the user must explicitly 
 
 ### `SmsReceiver`
 
-The manifest-registered broadcast receiver is the central orchestrator. It:
+The manifest-registered broadcast receiver owns the Android broadcast lifetime. It:
 
 - Accepts only the Android SMS-received action
 - Calls `goAsync()` before leaving the receiver callback
 - Dispatches processing to one shared single-thread executor
-- Reconstructs multipart SMS bodies
-- Selects the first available originating address
-- Rejects messages whose originating address is not in the configured sender allow-list
-- Applies the saved relay mode
-- Invokes parsing when needed, followed by SIM resolution, formatting, and delivery
+- Delegates multipart reconstruction and Android metadata extraction to `SmsBroadcastParser`
+- Delegates sender filtering, relay-mode selection, and request preparation to `RelayProcessor`
+- Resolves the SIM number lazily only after a message qualifies
+- Sends the prepared request and records its result
 - Overwrites the last-relay record with the delivery result, sender, and SMS timestamp
 - Finishes the pending broadcast in a `finally` block
 
 The single-thread executor serializes simultaneous messages and prevents one thread from being created per SMS.
+
+### `SmsBroadcastParser`
+
+The parser is the Android-facing boundary for SMS intent payloads. It reconstructs multipart bodies
+in platform-provided order, selects the first originating address, derives the earliest timestamp,
+and reads the receiving subscription identifier. It returns a small `IncomingSms` model.
+
+### `RelayProcessor`
+
+The processor is independent from Android broadcast objects. It applies the optional sender
+allow-list and saved relay mode, resolves the receiving number only for qualifying messages, and
+prepares the stable formatted request consumed by `ChatSender`.
 
 ### `OtpParser`
 
@@ -122,7 +138,10 @@ The formatter creates a stable plain-text message containing:
 
 ### `ChatSender`
 
-The sender posts a Google Chat text payload through `HttpURLConnection`. It uses explicit connection and read timeouts, closes each connection, and makes no more than three attempts.
+The sender builds its payload with the platform `JSONObject` encoder and posts it through
+`HttpURLConnection`. It uses explicit connection and read timeouts, closes each connection, and
+makes no more than three attempts. Injectable connection and delay functions allow deterministic
+JVM verification without changing the production API.
 
 ### `LastRelayStatus`
 
@@ -136,6 +155,7 @@ body, OTP, receiving number, or webhook.
 |------------------------|--------------------------------------|------------------------------------------------------------|
 | Google Chat webhook    | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
 | Relay mode             | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
+| Sender allow-list      | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
 | Incoming SMS body      | Broadcast payload and process memory | During processing                                          |
 | Formatted Chat message | Process memory                       | During delivery                                            |
 | Latest relay metadata  | App-private `SharedPreferences`      | Until overwritten, app data is cleared, or app is removed  |

@@ -91,41 +91,70 @@ Current `LastRelayStatus` coverage includes:
 - Unknown or incomplete stored state rejection
 - Timestamp formatting under a controlled timezone
 
+Current `ConfigurationState` coverage includes:
+
+- Missing and blank webhook setup state
+- Persisted active state
+- Equivalent normalized form values remaining saved
+- Relay-mode changes producing an unsaved state
+
+Current `RelayProcessor` coverage includes:
+
+- Complete accepted-request preparation with the stable message contract
+- Sender and relay-mode rejection
+- Blank-webhook rejection
+- Lazy SIM-number resolution only after a message qualifies
+
+Current `ChatSender` coverage includes:
+
+- Success without unnecessary retries
+- Three-attempt retry bounds and the 1-second/2-second delay schedule
+- Connection failures and non-success HTTP responses
+- Connection cleanup and configured timeouts
+- Lossless standard JSON encoding for control characters and Unicode
+
 Run the JVM tests directly with:
 
 ```bash
 ./gradlew testDebugUnitTest
 ```
 
-## Recommended Instrumentation Coverage
+## Current Instrumentation Coverage
 
-Add device tests under:
+Device tests live under:
 
 ```text
 app/src/androidTest/java/com/mridul/telcootprelay/
 ```
 
-Priority cases:
+The current 11-test baseline covers:
+
+- Initial setup, masked-webhook, and empty latest-relay state
+- Restoring the webhook, sender allow-list, relay mode, and active state
+- All-messages guidance and privacy warning
+- Webhook Show/Hide behavior
+- Delivered and failed latest-relay metadata without SMS bodies or OTPs
+- Equal 48dp action dimensions and retained button backgrounds
+- About & Privacy navigation
+- Exact user-relevant permission contract
+- Exported, system-permission-protected SMS receiver contract
+- Ignoring non-SMS intent actions
+
+The baseline passed on a physical Android 12 device during the September 2026 modernization.
+
+## Remaining Recommended Instrumentation Coverage
+
+Priority cases not yet automated:
 
 - Webhook validation and persistence
-- Relay-mode dropdown selection and persistence
 - Visible dropdown chevron and the **All incoming messages** option label
-- Mode-specific guidance when the dropdown selection changes
-- Dedicated privacy warning shown only for **All incoming messages**
-- Webhook masking and Show/Hide behavior
 - Destination and provider visual hierarchy
 - Compact header badge for `Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, and
   `Failed` states
-- Separate latest-relay card that appears only when relay result metadata exists
-- Last-relay success and failure details without SMS body or OTP content
-- About & Privacy navigation and content
 - Secondary **Test connection** followed by primary **Save configuration**
-- Equal-width 48dp action controls with complete backgrounds, visible rounded corners, an 8dp gap,
-  and clearance from the configuration-card border
 - Secondary button outline and primary button fill remain intact when disabled, enabled, pressed,
   and rendered with accessibility font scaling
 - Unsaved-change status after editing any configuration field
-- Sender allow-list persistence and unsaved-change status
 - Save action is dimmed and disabled as **Saved** until a configuration value changes
 - Version footer matches the installed package version
 - Full configuration is visible without scrolling at standard phone dimensions

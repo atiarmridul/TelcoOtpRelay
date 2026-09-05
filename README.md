@@ -60,8 +60,8 @@ messages from every sender.
 
 ## Prerequisites
 
-- Android Studio with Android SDK 35
-- JDK 17 or newer to start Gradle; the checked-in daemon criteria uses JDK 21
+- Android SDK 35; Android Studio is optional when the command-line SDK tools are installed
+- JDK 21 for the checked-in Gradle daemon criteria
 - Android 8.0 (API 26) or newer device with SMS capability
 - USB debugging and `adb` for command-line installation
 - A Google Chat incoming webhook URL
@@ -89,10 +89,14 @@ This daemon setting does not change the app's Java/Kotlin JVM target of 17.
 │       ├── java/com/mridul/telcootprelay/
 │       │   ├── AboutPrivacyActivity.kt
 │       │   ├── ChatSender.kt
+│       │   ├── ConfigurationState.kt
 │       │   ├── LastRelayStatus.kt
 │       │   ├── MainActivity.kt
 │       │   ├── OtpParser.kt
 │       │   ├── RelayMode.kt
+│       │   ├── RelayProcessor.kt
+│       │   ├── SenderFilter.kt
+│       │   ├── SmsBroadcastParser.kt
 │       │   ├── SmsFormatter.kt
 │       │   └── SmsReceiver.kt
 │       └── res/
@@ -114,8 +118,10 @@ Android SMS broadcast
         v
    SmsReceiver
         |
-        +--> SenderFilter
-        +--> RelayMode --> OtpParser when required
+        +--> SmsBroadcastParser
+        +--> RelayProcessor
+                +--> SenderFilter
+                +--> RelayMode --> OtpParser when required
         +--> SimNumberResolver
         +--> SmsFormatter
         +--> ChatSender --> Google Chat webhook
@@ -125,8 +131,11 @@ Android SMS broadcast
 |---------------------|---------------------------------------------------------------------------|
 | `MainActivity`      | Requests permissions and stores webhook, sender, and relay-mode configuration. |
 | `AboutPrivacyActivity` | Explains storage, forwarding, permissions, and user controls.          |
+| `ConfigurationState` | Calculates persisted and edited configuration states without Android views. |
 | `LastRelayStatus`   | Stores and restores the most recent result, sender, and timestamp.         |
-| `SmsReceiver`       | Coordinates SMS reconstruction, filtering, formatting, and delivery.      |
+| `SmsReceiver`       | Owns the Android broadcast lifetime, delivery, and result persistence.     |
+| `SmsBroadcastParser` | Reconstructs Android SMS broadcasts into an incoming-message model.       |
+| `RelayProcessor`    | Applies sender and relay-mode gates and prepares an outbound request.      |
 | `RelayMode`         | Restores the saved mode and decides whether an SMS should be forwarded.   |
 | `SenderFilter`      | Parses the optional sender allow-list and matches originating addresses.  |
 | `OtpParser`         | Determines whether an SMS looks like an OTP message.                      |
@@ -217,10 +226,11 @@ Run connected Android tests when a device or emulator is available:
 ./gradlew connectedDebugAndroidTest
 ```
 
-The project includes JVM unit tests for relay-mode selection, OTP parsing, message formatting, and
-last-relay status parsing and display formatting.
-Focused instrumentation characterization tests protect the main configuration states, privacy
-navigation, webhook masking, and action-control dimensions.
+The project includes JVM unit tests for configuration state, relay processing, sender and relay-mode
+selection, OTP parsing, message formatting, timestamp formatting, JSON encoding, and bounded HTTP
+retries. Eleven instrumentation tests protect the main configuration states, latest-relay privacy
+boundary, privacy navigation, webhook visibility, action-control dimensions, requested permissions,
+and SMS receiver contract.
 
 ## Battery-Efficient Design
 
@@ -276,7 +286,7 @@ navigation, webhook masking, and action-control dimensions.
 
 ### Gradle build fails
 
-- Confirm that JDK 17 and Android SDK 35 are installed.
+- Confirm that JDK 21 and Android SDK 35 are installed.
 - Open the project in Android Studio and allow Gradle synchronization to complete.
 - Verify the SDK path in the local, untracked `local.properties` file.
 
@@ -285,9 +295,12 @@ navigation, webhook masking, and action-control dimensions.
 - Kotlin
 - Android SDK
 - AndroidX Core and AppCompat
+- View Binding with XML layouts
 - Gradle Kotlin DSL
 - `BroadcastReceiver` for SMS events
 - `HttpURLConnection` for Google Chat delivery
+- `JSONObject` for request serialization
+- `java.time` for timestamp formatting
 - `SharedPreferences` for local configuration and the latest relay result metadata
 
 Dependency and SDK versions are defined in `app/build.gradle.kts` and the root Gradle configuration.

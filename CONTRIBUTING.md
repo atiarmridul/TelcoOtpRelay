@@ -4,8 +4,8 @@ Thank you for improving SMS Relay. Keep changes small, privacy-conscious, and su
 
 ## Before You Start
 
-- Use JDK 17 or newer to start Gradle and Android SDK 35. The checked-in Gradle daemon criteria may
-  provision JDK 21; the application bytecode target remains JVM 17.
+- Use JDK 21 and Android SDK 35. The checked-in Gradle daemon criteria select JDK 21; the
+  application bytecode target remains JVM 17.
 - Use an Android 8.0 (API 26) or newer device or emulator.
 - Never use real OTPs, phone numbers, or webhook URLs in source code, tests, screenshots, logs, commits, or issues.
 - Discuss large architectural changes before implementing them.

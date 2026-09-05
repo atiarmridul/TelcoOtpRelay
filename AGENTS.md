@@ -54,10 +54,14 @@ Do not upgrade SDKs, Gradle, Kotlin, or dependencies as an incidental change. Tr
 |--------------------------------------------------------------|-----------------------------------------------------------------|
 | `app/src/main/java/com/mridul/telcootprelay/MainActivity.kt` | Permission request plus webhook and relay-mode configuration UI |
 | `app/src/main/java/com/mridul/telcootprelay/AboutPrivacyActivity.kt` | Read-only privacy and data-flow explanation UI          |
+| `app/src/main/java/com/mridul/telcootprelay/ConfigurationState.kt` | Pure configuration-state calculation                  |
 | `app/src/main/java/com/mridul/telcootprelay/LastRelayStatus.kt` | Latest relay-result model, persistence, and formatting        |
-| `app/src/main/java/com/mridul/telcootprelay/SmsReceiver.kt`  | SMS orchestration plus opportunistic SIM-number resolution      |
+| `app/src/main/java/com/mridul/telcootprelay/SmsReceiver.kt`  | Broadcast lifetime, delivery, result storage, and SIM resolution |
+| `app/src/main/java/com/mridul/telcootprelay/SmsBroadcastParser.kt` | Android SMS reconstruction and metadata extraction       |
+| `app/src/main/java/com/mridul/telcootprelay/RelayProcessor.kt` | Pure relay gating and outbound-request preparation           |
 | `app/src/main/java/com/mridul/telcootprelay/OtpParser.kt`    | OTP classification and extraction regexes                       |
 | `app/src/main/java/com/mridul/telcootprelay/RelayMode.kt`    | Persisted relay-mode values and filtering decision              |
+| `app/src/main/java/com/mridul/telcootprelay/SenderFilter.kt` | Optional sender allow-list parsing and matching                  |
 | `app/src/main/java/com/mridul/telcootprelay/SmsFormatter.kt` | Outbound message formatting                                     |
 | `app/src/main/java/com/mridul/telcootprelay/ChatSender.kt`   | Google Chat HTTP delivery and retries                           |
 | `app/src/main/AndroidManifest.xml`                           | Permissions, hardware requirements, and Android components      |
@@ -112,9 +116,10 @@ For packaging changes, run:
 ./gradlew assembleDebug
 ```
 
-The repository has JVM tests for relay modes, parsing, and formatting but no instrumentation test
-classes. Add focused tests for changed logic, and state clearly when an Android test task reports
-`NO-SOURCE`.
+The repository has JVM tests for state calculation, relay processing, delivery, relay modes,
+parsing, and formatting. It also has Android instrumentation tests for UI behavior, privacy
+boundaries, permissions, and the receiver contract. Add focused tests for changed logic and run the
+device suite for activity, permission, manifest, or receiver changes.
 
 Do not hide lint failures with a baseline or suppression unless the underlying behavior is verified and the reason is documented.
 
