@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -72,6 +73,22 @@ class ChatSenderTest {
         assertEquals(3, attempts)
     }
 
+    @Test
+    fun `message is encoded by a standard JSON writer without content loss`() {
+        val connection = FakeConnection(200)
+        val message = "Quote \" slash \\ line\n tab\t backspace\b form-feed\u000C বাংলা"
+
+        val result = ChatSender.sendWithRetry(
+            webhookUrl = "https://chat.googleapis.com/example",
+            text = message,
+            connectionFactory = { connection },
+            sleep = {}
+        )
+
+        assertTrue(result)
+        assertEquals(message, JSONObject(connection.requestBodyText()).getString("text"))
+    }
+
     private class FakeConnection(
         private val statusCode: Int
     ) : HttpURLConnection(URL("https://chat.googleapis.com/example")) {
@@ -92,5 +109,7 @@ class ChatSenderTest {
         override fun getInputStream(): InputStream = ByteArrayInputStream(ByteArray(0))
 
         override fun getResponseCode(): Int = statusCode
+
+        fun requestBodyText(): String = requestBody.toString(Charsets.UTF_8.name())
     }
 }

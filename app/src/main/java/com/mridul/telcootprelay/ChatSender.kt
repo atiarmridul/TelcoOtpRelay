@@ -2,6 +2,7 @@ package com.mridul.telcootprelay
 
 import java.net.HttpURLConnection
 import java.net.URL
+import org.json.JSONObject
 
 object ChatSender {
     private const val CONNECT_TIMEOUT_MS = 4000
@@ -44,7 +45,7 @@ object ChatSender {
             connection.doOutput = true
             connection.useCaches = false
 
-            val json = "{\"text\":\"${escapeJson(text)}\"}"
+            val json = JSONObject().put("text", text).toString()
             connection.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
             connection.responseCode in 200..299
         } catch (_: Exception) {
@@ -54,10 +55,4 @@ object ChatSender {
         }
     }
 
-    private fun escapeJson(value: String): String =
-        value.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\r", "\\r")
-            .replace("\n", "\\n")
-            .replace("\t", "\\t")
 }
