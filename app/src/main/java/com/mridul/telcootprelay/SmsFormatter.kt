@@ -1,7 +1,8 @@
 package com.mridul.telcootprelay
 
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object SmsFormatter {
@@ -18,7 +19,9 @@ object SmsFormatter {
     }
 
     private fun formatLocal(millis: Long): String {
-        val sdf = SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.US)
-        return sdf.format(Date(millis))
+        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm:ss a", Locale.US)
+        return Instant.ofEpochMilli(millis)
+            .atZone(ZoneId.systemDefault())
+            .format(formatter)
     }
 }

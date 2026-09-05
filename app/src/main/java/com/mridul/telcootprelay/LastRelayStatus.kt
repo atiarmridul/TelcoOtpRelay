@@ -1,8 +1,9 @@
 package com.mridul.telcootprelay
 
 import android.content.SharedPreferences
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 enum class RelayDeliveryResult {
@@ -15,8 +16,12 @@ data class LastRelayStatus(
     val sender: String,
     val timestampMillis: Long
 ) {
-    fun formatTimestamp(locale: Locale = Locale.getDefault()): String =
-        SimpleDateFormat("dd MMM yyyy, hh:mm a", locale).format(Date(timestampMillis))
+    fun formatTimestamp(
+        locale: Locale = Locale.getDefault(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): String = Instant.ofEpochMilli(timestampMillis)
+        .atZone(zoneId)
+        .format(DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a", locale))
 
     companion object {
         fun fromStored(

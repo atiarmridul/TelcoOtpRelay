@@ -1,5 +1,6 @@
 package com.mridul.telcootprelay
 
+import java.time.ZoneId
 import java.util.Locale
 import java.util.TimeZone
 import org.junit.After
@@ -53,6 +54,9 @@ class LastRelayStatusTest {
     fun `formats the relay timestamp for display`() {
         val status = LastRelayStatus(RelayDeliveryResult.DELIVERED, "TEST-SENDER", 0L)
 
-        assertEquals("01 Jan 1970, 12:00 AM", status.formatTimestamp(Locale.US))
+        assertEquals(
+            "01 Jan 1970, 12:00 AM",
+            status.formatTimestamp(Locale.US, ZoneId.of("UTC"))
+        )
     }
 }
