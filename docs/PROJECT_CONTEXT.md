@@ -23,6 +23,7 @@ to the configured Google Chat webhook.
   the latest incoming-message delivery result.
 - The standard phone layout keeps the full configuration, actions, privacy link, and version visible
   without scrolling while preserving fallback scrolling for constrained windows.
+- The version footer remains pinned to the bottom edge independently of the configuration scroll.
 - New multipart SMS messages are reconstructed correctly.
 - **All incoming messages** mode forwards every non-empty incoming SMS body.
 - A blank sender list accepts every sender; a populated list accepts only matching originating
@@ -31,8 +32,9 @@ to the configured Google Chat webhook.
 - Existing installations without a saved mode remain OTP-only.
 - Missing SIM-number data is represented honestly as `Unknown`.
 - Processing remains event-driven and avoids continuous battery usage.
-- No SMS history or analytics is stored locally. Only the most recent relay result, sender, and
-  timestamp are retained; SMS bodies and OTPs are not retained.
+- Relay-result history is stored locally with result, sender, SMS timestamp, and a privacy-safe
+  failure category or HTTP status. SMS bodies, OTPs, receiving numbers, webhook data, host
+  addresses, and exception text are not retained in history.
 - Failures finish the pending broadcast without crashing the app process.
 
 ## Out of Scope
@@ -59,7 +61,8 @@ to the configured Google Chat webhook.
 | Relay mode         | The saved choice between **OTP messages only** and **All incoming messages**.       |
 | Sender allow-list  | Optional comma- or newline-separated originating addresses; blank means all senders. |
 | Relay              | Formatting and posting a qualifying SMS to Google Chat.                            |
-| Last relay         | The latest delivery result, sender, and SMS timestamp; not a message history.       |
+| Last relay         | The latest delivery result shown on the configuration screen.                |
+| Relay history      | On-device delivery results, senders, SMS timestamps, and safe failure reasons; never SMS content. |
 | Status badge       | Compact configuration/test state; not an incoming-message delivery record.         |
 
 ## Current OTP Rules

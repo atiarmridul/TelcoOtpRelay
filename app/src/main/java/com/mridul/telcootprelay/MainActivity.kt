@@ -89,6 +89,9 @@ class MainActivity : Activity() {
         }
         binding.privacyCard.setOnClickListener(openPrivacy)
         binding.privacyLink.setOnClickListener(openPrivacy)
+        statusCard.setOnClickListener {
+            startActivity(Intent(this, RelayHistoryActivity::class.java))
+        }
     }
 
     private fun configureContentWidth() {
@@ -212,7 +215,7 @@ class MainActivity : Activity() {
         }
         renderStatus(ConfigurationStatus.TESTING)
         Thread {
-            val ok = ChatSender.sendWithRetry(
+            val sendResult = ChatSender.sendWithRetry(
                 webhook,
                 SmsFormatter.format(
                     receivingNumber = "Test Number",
@@ -223,7 +226,7 @@ class MainActivity : Activity() {
             )
             runOnUiThread {
                 renderStatus(
-                    if (ok) ConfigurationStatus.CONNECTED else ConfigurationStatus.FAILED
+                    if (sendResult.delivered) ConfigurationStatus.CONNECTED else ConfigurationStatus.FAILED
                 )
             }
         }.start()
@@ -266,6 +269,20 @@ class MainActivity : Activity() {
         lastRelaySender.text = getString(R.string.last_relay_sender, lastRelay.sender)
         lastRelayTime.text = lastRelay.formatTimestamp()
         lastRelayDetail.visibility = if (delivered) View.GONE else View.VISIBLE
+        if (!delivered) {
+            lastRelayDetail.text = when (lastRelay.failureKind) {
+                RelayFailureKind.HTTP_STATUS -> lastRelay.httpStatusCode?.let {
+                    getString(R.string.last_relay_http_failure, it)
+                } ?: getString(R.string.last_relay_retries_exhausted)
+                RelayFailureKind.CONNECTION_TIMEOUT ->
+                    getString(R.string.last_relay_connection_timeout)
+                RelayFailureKind.RESPONSE_TIMEOUT ->
+                    getString(R.string.last_relay_response_timeout)
+                RelayFailureKind.DNS_FAILURE -> getString(R.string.last_relay_dns_failure)
+                RelayFailureKind.NETWORK_FAILURE -> getString(R.string.last_relay_network_failure)
+                null -> getString(R.string.last_relay_retries_exhausted)
+            }
+        }
     }
 
     private fun renderStatus(status: ConfigurationStatus) {

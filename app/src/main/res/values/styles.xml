@@ -92,6 +92,16 @@
         <item name="android:textSize">12sp</item>
     </style>
 
+    <style name="Widget.SmsRelay.Button.Danger" parent="Widget.AppCompat.Button.Borderless">
+        <item name="android:background">@drawable/bg_danger_button</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:minHeight">@dimen/control_min_height</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/error_text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
     <style name="Widget.SmsRelay.Footer" parent="">
         <item name="android:gravity">center</item>
         <item name="android:textColor">@color/text_hint</item>

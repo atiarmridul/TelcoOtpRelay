@@ -28,6 +28,10 @@
             android:name=".AboutPrivacyActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".RelayHistoryActivity"
+            android:exported="false" />
+
         <!-- Event-driven: Android wakes this receiver when an SMS arrives. -->
         <receiver
             android:name=".SmsReceiver"

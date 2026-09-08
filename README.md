@@ -132,7 +132,9 @@ Android SMS broadcast
 | `MainActivity`      | Requests permissions and stores webhook, sender, and relay-mode configuration. |
 | `AboutPrivacyActivity` | Explains storage, forwarding, permissions, and user controls.          |
 | `ConfigurationState` | Calculates persisted and edited configuration states without Android views. |
-| `LastRelayStatus`   | Stores and restores the most recent result, sender, and timestamp.         |
+| `LastRelayStatus`   | Stores the latest result, sender, timestamp, and safe failure diagnostic.  |
+| `RelayHistoryActivity` | Shows locally stored delivery-result history and safe failure reasons. |
+| `RelayHistoryStore` | Appends privacy-safe relay metadata to the on-device SQLite history.       |
 | `SmsReceiver`       | Owns the Android broadcast lifetime, delivery, and result persistence.     |
 | `SmsBroadcastParser` | Reconstructs Android SMS broadcasts into an incoming-message model.       |
 | `RelayProcessor`    | Applies sender and relay-mode gates and prepares an outbound request.      |
@@ -184,9 +186,13 @@ disabled **Saved** button. **Test connection** remains a separate secondary acti
 equal-width 48dp controls with complete rounded backgrounds and clearance from the card edge.
 
 When relay metadata exists, a separate card shows only the latest delivered/failed result, sender,
-and SMS timestamp. It never displays or stores the SMS body or OTP. The full standard-phone layout
-is intentionally compact, with scrolling retained for smaller windows and accessibility text. The
-in-app **About & Privacy** card opens detailed data-handling information.
+SMS timestamp, and a privacy-safe failure category or HTTP status when applicable. Tapping that
+card opens the complete locally stored relay-result history. Neither surface displays or stores the
+SMS body, OTP, receiving number, webhook, host address, or exception text. The full
+standard-phone layout is intentionally compact, with scrolling retained for smaller windows and
+accessibility text. The history screen has a confirmed **Clear history** action that removes result
+metadata without changing relay configuration. The in-app **About & Privacy** card opens detailed
+data-handling information, and the installed version remains pinned to the bottom of the main screen.
 
 ## Permissions
 
@@ -228,9 +234,9 @@ Run connected Android tests when a device or emulator is available:
 
 The project includes JVM unit tests for configuration state, relay processing, sender and relay-mode
 selection, OTP parsing, message formatting, timestamp formatting, JSON encoding, and bounded HTTP
-retries. Eleven instrumentation tests protect the main configuration states, latest-relay privacy
-boundary, privacy navigation, webhook visibility, action-control dimensions, requested permissions,
-and SMS receiver contract.
+retries. Instrumentation tests protect the main configuration states, latest-relay privacy
+boundary, local history navigation and failure reasons, privacy navigation, webhook visibility,
+action-control dimensions, requested permissions, and SMS receiver contract.
 
 ## Battery-Efficient Design
 
@@ -240,7 +246,7 @@ and SMS receiver contract.
 - No GPS or location access
 - No SMS database or history scan
 - One shared background executor
-- Short HTTP connection and read timeouts
+- Bounded 5-second connection and 8-second read timeouts
 - At most three webhook attempts per qualifying SMS
 - Network connections closed after every attempt
 
@@ -257,8 +263,8 @@ and SMS receiver contract.
 
 - Use this app only on an authorized, dedicated QA device.
 - Treat the Google Chat webhook URL as a credential and do not commit it to Git.
-- The webhook, relay mode, optional sender list, and latest relay result metadata are stored locally in the app's private
-  preferences. SMS bodies and OTPs are not retained locally.
+- The webhook, relay mode, optional sender list, and relay-result history are stored locally in the
+  app's private storage. SMS bodies, OTPs, receiving numbers, and raw error details are not retained.
 - SMS content is sent according to the saved relay mode. **All incoming messages** mode forwards
   non-OTP messages too.
 - Application backup is disabled in the Android manifest.
@@ -302,6 +308,7 @@ and SMS receiver contract.
 - `JSONObject` for request serialization
 - `java.time` for timestamp formatting
 - `SharedPreferences` for local configuration and the latest relay result metadata
+- SQLite for privacy-safe local relay-result history
 
 Dependency and SDK versions are defined in `app/build.gradle.kts` and the root Gradle configuration.
 

@@ -82,7 +82,7 @@ This file records the important decisions visible in the current implementation.
 
 ## ADR-011: Retain Only the Latest Relay Result Metadata
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-014
 - **Decision:** Persist only the most recent delivered/failed result, sender, and SMS timestamp in
   app-private preferences. Never persist the SMS body, OTP, receiving number, or webhook as part of
   the status record.
@@ -116,6 +116,19 @@ This file records the important decisions visible in the current implementation.
 - **Consequences:** The sender list becomes locally retained configuration. Sender addresses exposed
   by carriers can vary in format, so users must configure the address Android reports; missing
   originating addresses do not match a populated list.
+
+## ADR-014: Retain Privacy-Safe Relay-Result History Locally
+
+- **Status:** Accepted
+- **Decision:** Continue storing the latest relay metadata in preferences for the compact home-card
+  summary and append every qualifying delivery result to an app-private SQLite history. Store only
+  result, sender, SMS timestamp, safe failure category, and optional HTTP status.
+- **Reason:** QA users need to inspect prior successes and failures, including why delivery failed,
+  by tapping the latest-relay card without consulting SMS content or remote logs.
+- **Consequences:** The unlocked device exposes sender and delivery metadata for all recorded relay
+  attempts until app data is cleared or the app is removed. SMS bodies, OTPs, receiving numbers,
+  webhook URLs, host addresses, and raw exception text remain excluded. The history is not a queue
+  and never retries or resends a message.
 
 ## Changing a Decision
 

@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.net.URL
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -26,13 +28,13 @@ class ChatSenderTest {
             sleep = delays::add
         )
 
-        assertTrue(result)
+        assertTrue(result.delivered)
         assertEquals(1, connections.size)
         assertEquals(emptyList<Long>(), delays)
         assertTrue(connections.single().disconnected)
         assertEquals("POST", connections.single().requestMethod)
-        assertEquals(4000, connections.single().connectTimeout)
-        assertEquals(5000, connections.single().readTimeout)
+        assertEquals(5000, connections.single().connectTimeout)
+        assertEquals(8000, connections.single().readTimeout)
     }
 
     @Test
@@ -50,7 +52,9 @@ class ChatSenderTest {
             sleep = delays::add
         )
 
-        assertFalse(result)
+        assertFalse(result.delivered)
+        assertEquals(RelayFailureKind.HTTP_STATUS, result.failureKind)
+        assertEquals(500, result.httpStatusCode)
         assertEquals(3, attempts)
         assertEquals(listOf(1000L, 2000L), delays)
     }
@@ -69,8 +73,52 @@ class ChatSenderTest {
             sleep = {}
         )
 
-        assertFalse(result)
+        assertFalse(result.delivered)
+        assertEquals(RelayFailureKind.NETWORK_FAILURE, result.failureKind)
         assertEquals(3, attempts)
+    }
+
+    @Test
+    fun `connection timeout is reported without exception details`() {
+        val result = ChatSender.sendWithRetry(
+            webhookUrl = "https://chat.googleapis.com/example",
+            text = "Test message",
+            connectionFactory = {
+                FakeConnection(200, connectFailure = SocketTimeoutException("sensitive detail"))
+            },
+            sleep = {}
+        )
+
+        assertEquals(RelayFailureKind.CONNECTION_TIMEOUT, result.failureKind)
+        assertEquals(null, result.httpStatusCode)
+    }
+
+    @Test
+    fun `response timeout is distinguished from connection timeout`() {
+        val result = ChatSender.sendWithRetry(
+            webhookUrl = "https://chat.googleapis.com/example",
+            text = "Test message",
+            connectionFactory = {
+                FakeConnection(200, responseFailure = SocketTimeoutException("sensitive detail"))
+            },
+            sleep = {}
+        )
+
+        assertEquals(RelayFailureKind.RESPONSE_TIMEOUT, result.failureKind)
+    }
+
+    @Test
+    fun `DNS failure is reported without host or exception details`() {
+        val result = ChatSender.sendWithRetry(
+            webhookUrl = "https://chat.googleapis.com/example",
+            text = "Test message",
+            connectionFactory = {
+                FakeConnection(200, connectFailure = UnknownHostException("sensitive detail"))
+            },
+            sleep = {}
+        )
+
+        assertEquals(RelayFailureKind.DNS_FAILURE, result.failureKind)
     }
 
     @Test
@@ -85,18 +133,22 @@ class ChatSenderTest {
             sleep = {}
         )
 
-        assertTrue(result)
+        assertTrue(result.delivered)
         assertEquals(message, JSONObject(connection.requestBodyText()).getString("text"))
     }
 
     private class FakeConnection(
-        private val statusCode: Int
+        private val statusCode: Int,
+        private val connectFailure: Exception? = null,
+        private val responseFailure: Exception? = null
     ) : HttpURLConnection(URL("https://chat.googleapis.com/example")) {
         private val requestBody = ByteArrayOutputStream()
         var disconnected = false
             private set
 
-        override fun connect() = Unit
+        override fun connect() {
+            connectFailure?.let { throw it }
+        }
 
         override fun disconnect() {
             disconnected = true
@@ -108,7 +160,10 @@ class ChatSenderTest {
 
         override fun getInputStream(): InputStream = ByteArrayInputStream(ByteArray(0))
 
-        override fun getResponseCode(): Int = statusCode
+        override fun getResponseCode(): Int {
+            responseFailure?.let { throw it }
+            return statusCode
+        }
 
         fun requestBodyText(): String = requestBody.toString(Charsets.UTF_8.name())
     }

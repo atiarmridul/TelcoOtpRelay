@@ -32,7 +32,7 @@ Changes require additional review when they affect:
 - Sender allow-list matching and persistence
 - OTP detection and the broader data exposure of **All incoming messages** mode
 - Webhook URL validation or storage
-- Storage and display of latest-relay sender, timestamp, and result metadata
+- Storage and display of relay-history senders, timestamps, results, and safe failure reasons
 - HTTP request construction and redirect behavior
 - Logging, analytics, crash reporting, or backups
 - SIM and phone-number access

@@ -45,6 +45,32 @@ class LastRelayStatusTest {
     }
 
     @Test
+    fun `restores privacy safe failure diagnostics`() {
+        val status = LastRelayStatus.fromStored(
+            result = "FAILED",
+            sender = "TEST-SENDER",
+            timestampMillis = 0L,
+            failureKind = "HTTP_STATUS",
+            httpStatusCode = 503
+        )
+
+        assertEquals(RelayFailureKind.HTTP_STATUS, status?.failureKind)
+        assertEquals(503, status?.httpStatusCode)
+    }
+
+    @Test
+    fun `ignores unknown failure diagnostics for backward compatibility`() {
+        val status = LastRelayStatus.fromStored(
+            result = "FAILED",
+            sender = "TEST-SENDER",
+            timestampMillis = 0L,
+            failureKind = "UNKNOWN_FAILURE"
+        )
+
+        assertEquals(null, status?.failureKind)
+    }
+
+    @Test
     fun `rejects unknown or incomplete stored status`() {
         assertNull(LastRelayStatus.fromStored("UNKNOWN", "TEST-SENDER", 0L))
         assertNull(LastRelayStatus.fromStored("DELIVERED", "TEST-SENDER", -1L))

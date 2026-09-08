@@ -6,8 +6,8 @@ The repository contains JVM unit tests for relay-mode selection, OTP classificat
 sender allow-listing, outbound message formatting, and last-relay status parsing and timestamp
 formatting. Android instrumentation characterization tests protect the main screen's initial and
 persisted states, mode-specific privacy warning, latest-relay privacy boundary, action-control
-dimensions, webhook masking and visibility, About & Privacy navigation, requested permissions, and
-the SMS receiver's manifest and action contract.
+dimensions, webhook masking and visibility, relay-history navigation and safe failure reasons,
+About & Privacy navigation, requested permissions, and the SMS receiver's manifest and action contract.
 
 ## Automated Verification
 
@@ -111,6 +111,8 @@ Current `ChatSender` coverage includes:
 - Three-attempt retry bounds and the 1-second/2-second delay schedule
 - Connection failures and non-success HTTP responses
 - Connection cleanup and configured timeouts
+- Privacy-safe classification of connection timeout, response timeout, DNS, HTTP, and other
+  network failures
 - Lossless standard JSON encoding for control characters and Unicode
 
 Run the JVM tests directly with:
@@ -127,14 +129,17 @@ Device tests live under:
 app/src/androidTest/java/com/mridul/telcootprelay/
 ```
 
-The current 11-test baseline covers:
+The instrumentation baseline covers:
 
 - Initial setup, masked-webhook, and empty latest-relay state
 - Restoring the webhook, sender allow-list, relay mode, and active state
 - All-messages guidance and privacy warning
 - Webhook Show/Hide behavior
 - Delivered and failed latest-relay metadata without SMS bodies or OTPs
+- Latest-relay-card navigation to locally stored history with a safe failure reason
+- Confirmed history clearing removes result metadata without changing configuration
 - Equal 48dp action dimensions and retained button backgrounds
+- Version footer pinned to the bottom of the main screen
 - About & Privacy navigation
 - Exact user-relevant permission contract
 - Exported, system-permission-protected SMS receiver contract
@@ -156,7 +161,7 @@ Priority cases not yet automated:
   and rendered with accessibility font scaling
 - Unsaved-change status after editing any configuration field
 - Save action is dimmed and disabled as **Saved** until a configuration value changes
-- Version footer matches the installed package version
+- Version footer text matches the installed package version
 - Full configuration is visible without scrolling at standard phone dimensions
 - Configuration remains usable via fallback scrolling on small landscape and large-text displays
 - Permission-denied configuration flow
@@ -191,6 +196,8 @@ Avoid real SMS bodies and active webhook credentials in test fixtures.
 | Offline device                       | Attempts remain bounded and the receiver finishes.       |
 | Successful qualifying relay          | Latest status shows delivered, sender, and timestamp only. |
 | Failed qualifying relay              | Latest status shows failure and exhausted retries.       |
+| Tap latest-relay card                 | Local history opens newest first with safe failure reasons. |
+| Clear relay history                   | Confirmation appears; accepting removes only result metadata. |
 | Dual-SIM device                      | Receiving subscription is used when Android provides it. |
 
 Use synthetic OTPs and a dedicated test Chat space for manual verification.

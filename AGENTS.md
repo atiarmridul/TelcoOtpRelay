@@ -35,7 +35,7 @@ Preserve these product invariants unless the user explicitly changes the require
 
 ## Technology and Compatibility
 
-- Android Gradle Plugin 9.4.0 with built-in Kotlin support
+- Android Gradle Plugin 9.3.0 with built-in Kotlin support
 - Gradle wrapper 9.6.0
 - Android application module `:app`
 - Namespace and application ID: `com.mridul.telcootprelay`
@@ -56,6 +56,8 @@ Do not upgrade SDKs, Gradle, Kotlin, or dependencies as an incidental change. Tr
 | `app/src/main/java/com/mridul/telcootprelay/AboutPrivacyActivity.kt` | Read-only privacy and data-flow explanation UI          |
 | `app/src/main/java/com/mridul/telcootprelay/ConfigurationState.kt` | Pure configuration-state calculation                  |
 | `app/src/main/java/com/mridul/telcootprelay/LastRelayStatus.kt` | Latest relay-result model, persistence, and formatting        |
+| `app/src/main/java/com/mridul/telcootprelay/RelayHistoryActivity.kt` | Read-only local relay-result history UI                 |
+| `app/src/main/java/com/mridul/telcootprelay/RelayHistoryStore.kt` | App-private relay-history database                        |
 | `app/src/main/java/com/mridul/telcootprelay/SmsReceiver.kt`  | Broadcast lifetime, delivery, result storage, and SIM resolution |
 | `app/src/main/java/com/mridul/telcootprelay/SmsBroadcastParser.kt` | Android SMS reconstruction and metadata extraction       |
 | `app/src/main/java/com/mridul/telcootprelay/RelayProcessor.kt` | Pure relay gating and outbound-request preparation           |
@@ -80,8 +82,8 @@ Do not upgrade SDKs, Gradle, Kotlin, or dependencies as an incidental change. Tr
 - Use Android string resources for new user-facing text.
 - Keep configuration controls at least 48dp high and preserve complete button outlines at supported
   phone widths and accessibility text sizes.
-- Keep configuration state in the header badge and latest-delivery metadata in its separate card;
-  never add SMS bodies or OTP values to either surface.
+- Keep configuration state in the header badge, latest-delivery metadata in its separate card, and
+  full result metadata in the local history screen; never add SMS bodies or OTP values to these surfaces.
 - Use a standard JSON encoder if changing request serialization.
 - Document changes to permissions, background execution, storage, or network destinations.
 

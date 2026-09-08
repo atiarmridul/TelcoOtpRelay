@@ -12,8 +12,10 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack
+import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
@@ -33,11 +35,13 @@ class MainActivityCharacterizationTest {
     @Before
     fun clearStoredState() {
         preferences().edit().clear().commit()
+        context.deleteDatabase("relay_history.db")
     }
 
     @After
     fun removeStoredState() {
         preferences().edit().clear().commit()
+        context.deleteDatabase("relay_history.db")
     }
 
     @Test
@@ -101,6 +105,18 @@ class MainActivityCharacterizationTest {
                 assertEquals(testButton.layoutParams.width, saveButton.layoutParams.width)
                 assertNotNull(testButton.background)
                 assertNotNull(saveButton.background)
+            }
+        }
+    }
+
+    @Test
+    fun versionFooterStaysPinnedToTheBottomOfTheScreen() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val version = activity.findViewById<View>(R.id.version_text)
+                val screen = version.parent as View
+
+                assertEquals(screen.height, version.bottom)
             }
         }
     }
@@ -182,6 +198,73 @@ class MainActivityCharacterizationTest {
                     "Automatic retries exhausted.",
                     activity.findViewById<TextView>(R.id.last_relay_detail).text.toString()
                 )
+            }
+        }
+    }
+
+    @Test
+    fun latestRelayCardOpensLocalHistoryWithFailureReason() {
+        preferences().edit()
+            .putString(LastRelayStore.RESULT_KEY, RelayDeliveryResult.FAILED.name)
+            .putString(LastRelayStore.SENDER_KEY, "TEST-SENDER")
+            .putLong(LastRelayStore.TIMESTAMP_KEY, 0L)
+            .putString(LastRelayStore.FAILURE_KIND_KEY, RelayFailureKind.DNS_FAILURE.name)
+            .commit()
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.findViewById<View>(R.id.status_card).performClick()
+            }
+            onView(withText("Relay history")).check(matches(isDisplayed()))
+            onView(withText("Delivery failed")).check(matches(isDisplayed()))
+            onView(withText("From: TEST-SENDER")).check(matches(isDisplayed()))
+            onView(withText("Could not resolve the Google Chat host after retries."))
+                .check(matches(isDisplayed()))
+            onView(withText("Clear history")).check(matches(isDisplayed()))
+            pressBack()
+        }
+    }
+
+    @Test
+    fun relayHistoryStoresEveryResultNewestFirst() {
+        RelayHistoryStore.append(
+            context,
+            LastRelayStatus(RelayDeliveryResult.DELIVERED, "FIRST-SENDER", 1L)
+        )
+        RelayHistoryStore.append(
+            context,
+            LastRelayStatus(
+                RelayDeliveryResult.FAILED,
+                "SECOND-SENDER",
+                2L,
+                RelayFailureKind.HTTP_STATUS,
+                503
+            )
+        )
+
+        val history = RelayHistoryStore.loadAll(context)
+
+        assertEquals(2, history.size)
+        assertEquals("SECOND-SENDER", history[0].status.sender)
+        assertEquals(RelayFailureKind.HTTP_STATUS, history[0].status.failureKind)
+        assertEquals(503, history[0].status.httpStatusCode)
+        assertEquals("FIRST-SENDER", history[1].status.sender)
+    }
+
+    @Test
+    fun clearHistoryRequiresConfirmationAndRemovesLocalResults() {
+        val status = LastRelayStatus(RelayDeliveryResult.FAILED, "TEST-SENDER", 2L)
+        RelayHistoryStore.append(context, status)
+        LastRelayStore.save(preferences(), status.result, status.sender, status.timestampMillis)
+
+        ActivityScenario.launch(RelayHistoryActivity::class.java).use { scenario ->
+            onView(withText("Clear history")).perform(click())
+            onView(withText("Clear relay history?")).check(matches(isDisplayed()))
+            onView(withId(android.R.id.button1)).perform(click())
+            onView(withText("No relay history yet.")).check(matches(isDisplayed()))
+            scenario.onActivity {
+                assertTrue(RelayHistoryStore.loadAll(it).isEmpty())
+                assertEquals(null, LastRelayStore.load(preferences()))
             }
         }
     }

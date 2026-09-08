@@ -19,7 +19,7 @@ flowchart TD
     E -- Yes --> G[Resolve receiving SIM number]
     G --> H[SmsFormatter creates message]
     H --> I[ChatSender posts to Google Chat]
-    I --> J[Store latest result, sender, and timestamp]
+    I --> J[Store latest result and append privacy-safe local history]
     J --> F
 ```
 
@@ -42,11 +42,12 @@ card-based configuration surface. It:
   senders
 - Displays compact `Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, and `Failed`
   configuration/test states in a header badge
-- Displays most-recent-relay metadata in a separate delivered/failed card only when a record exists
+- Displays most-recent-relay metadata in a tappable delivered/failed card only when a record exists
+- Opens `RelayHistoryActivity` from that card
 - Keeps **Test connection** as a secondary outlined action and **Save configuration** as the primary
   action; both are equal-width, 48dp AppCompat controls with explicit untinted backgrounds
 - Links to a read-only **About & Privacy** screen
-- Shows the installed version at the end of the screen
+- Keeps the installed version pinned to the bottom of the screen, outside the scrolling content
 - Uses a compact, width-capped layout that fits a standard phone screen without scrolling, while
   retaining scrolling as a fallback for small landscape windows and large accessibility text
 
@@ -56,6 +57,15 @@ The header badge represents configuration and connection-test state, not the res
 incoming SMS. The latest-relay card represents that delivery record and is independently updated by
 the preference listener. This separation avoids duplicating active-state content and keeps SMS
 metadata out of transient configuration feedback.
+
+### `RelayHistoryActivity`
+
+This read-only screen lists all locally recorded relay attempts newest first. Each row contains the
+delivery result, sender, SMS timestamp, and a privacy-safe failure reason when delivery failed. It
+does not display or load SMS bodies, OTPs, receiving numbers, webhook URLs, host addresses, or raw
+exception text.
+An outlined destructive action requires confirmation, then clears the history database and latest
+home-card metadata without changing the webhook, relay mode, or sender allow-list.
 
 `ConfigurationState` calculates persisted, active, and unsaved form states without depending on
 Android views. `MainActivity` maps those states onto the existing badge resources.
@@ -79,7 +89,9 @@ The manifest-registered broadcast receiver owns the Android broadcast lifetime. 
 - Delegates sender filtering, relay-mode selection, and request preparation to `RelayProcessor`
 - Resolves the SIM number lazily only after a message qualifies
 - Sends the prepared request and records its result
-- Overwrites the last-relay record with the delivery result, sender, and SMS timestamp
+- Overwrites the last-relay record with the delivery result, sender, SMS timestamp, and a
+  privacy-safe failure category or HTTP status
+- Appends the same privacy-safe metadata to the local relay-history database
 - Finishes the pending broadcast in a `finally` block
 
 The single-thread executor serializes simultaneous messages and prevents one thread from being created per SMS.
@@ -139,15 +151,24 @@ The formatter creates a stable plain-text message containing:
 ### `ChatSender`
 
 The sender builds its payload with the platform `JSONObject` encoder and posts it through
-`HttpURLConnection`. It uses explicit connection and read timeouts, closes each connection, and
-makes no more than three attempts. Injectable connection and delay functions allow deterministic
-JVM verification without changing the production API.
+`HttpURLConnection`. It uses a 5-second connection timeout and 8-second read timeout, closes each
+connection, and makes no more than three attempts. Its result distinguishes HTTP status,
+connection timeout, response timeout, DNS failure, and another network failure without retaining
+URLs or exception messages. Injectable connection and delay functions allow deterministic JVM
+verification without changing the production API.
 
 ### `LastRelayStatus`
 
 The status model and store retain exactly one relay result in app-private preferences. The record
-contains delivered/failed state, sender, and SMS timestamp. It never receives or stores the SMS
-body, OTP, receiving number, or webhook.
+contains delivered/failed state, sender, SMS timestamp, and a privacy-safe failure category or HTTP
+status. It never receives or stores the SMS body, OTP, receiving number, webhook, host address, or
+exception text.
+
+### `RelayHistoryStore`
+
+The history store uses an app-private SQLite database and returns entries newest first. Existing
+installations migrate their one legacy latest-relay record into history once. History remains until
+app data is cleared or the app is removed; it is display-only and is not a delivery or retry queue.
 
 ## State and Data Boundaries
 
@@ -159,6 +180,7 @@ body, OTP, receiving number, or webhook.
 | Incoming SMS body      | Broadcast payload and process memory | During processing                                          |
 | Formatted Chat message | Process memory                       | During delivery                                            |
 | Latest relay metadata  | App-private `SharedPreferences`      | Until overwritten, app data is cleared, or app is removed  |
+| Relay-result history   | App-private SQLite database          | Until app data is cleared or the app is removed             |
 | OTP history            | Not stored                           | None                                                       |
 
 ## Delivery Semantics
@@ -167,7 +189,7 @@ Delivery is best-effort:
 
 - A failed request is retried within the current process.
 - Failed messages are not persisted for later delivery.
-- The latest failed status indicates that the bounded in-process retries were exhausted; it does
+- A failed history entry indicates that the bounded in-process retries were exhausted; it does
   not schedule another retry.
 - A request accepted by Google followed by a lost response can be sent again.
 - There is no duplicate-suppression or idempotency key.

@@ -19,10 +19,12 @@ For an incoming SMS, the app may process:
 
 The app also processes the Google Chat webhook URL entered by the user.
 It stores the user's relay-mode choice and optional sender allow-list.
-After a qualifying delivery attempt finishes, it stores the latest delivered/failed result, sender,
-and SMS timestamp for display in a dedicated latest-relay card. The compact header badge displays
-configuration and test state only; neither surface receives the SMS body, OTP, receiving number, or
-webhook value.
+After a qualifying delivery attempt finishes, it stores the delivered/failed result, sender, SMS
+timestamp, and a privacy-safe failure category or HTTP status. The latest result appears in the
+home-screen card; tapping that card opens the complete local result history. It does not store
+exception messages, resolved host addresses, receiving numbers, or webhook data as diagnostics.
+The compact header badge displays configuration and test state only. No result surface receives the
+SMS body, OTP, receiving number, or webhook value.
 
 ## Data Collection Rules
 
@@ -43,15 +45,16 @@ webhook value.
 | Webhook URL           | Yes             | Stored in app-private `SharedPreferences`.                          |
 | Relay mode            | Yes             | Stored in app-private `SharedPreferences`; defaults to OTP-only.    |
 | Sender allow-list     | Yes             | Optional originating addresses; blank means all senders.           |
-| Latest relay result   | Yes             | Delivered/failed state; overwritten by the next qualifying relay.  |
-| Latest relay sender   | Yes             | Sender only; overwritten by the next qualifying relay.             |
-| Latest relay timestamp| Yes             | SMS timestamp; overwritten by the next qualifying relay.           |
+| Relay result history | Yes              | Delivered/failed state for every qualifying delivery attempt.      |
+| Relay sender history | Yes              | Sender associated with each qualifying delivery attempt.           |
+| Relay timestamps     | Yes              | SMS timestamp associated with every history entry.                  |
+| Failure diagnostics  | Yes              | Safe category and optional HTTP status; no URL or exception text.   |
 | SMS body              | No              | Held temporarily in process memory.                                 |
-| OTP history           | No              | No local database or history file exists.                           |
+| SMS body or OTP history | No            | The local database contains result metadata only.                  |
 | SIM number            | No              | Resolved for the current message only.                              |
 
 Application backup is disabled. Clearing app data or uninstalling the app removes its stored webhook,
-relay-mode and sender configuration, and latest-relay metadata.
+relay-mode and sender configuration, and relay-result history.
 
 ## Data Transmission
 
@@ -74,11 +77,14 @@ Phone-number access may return no value even when permission is granted.
 
 ## Retention and Deletion
 
-The app itself retains the webhook, relay-mode and sender configuration, and latest relay result, sender, and
-timestamp. It does not retain the SMS body or OTP. To remove locally stored data:
+The app itself retains the webhook, relay-mode and sender configuration, and relay-result history
+containing sender, timestamp, result, and safe failure diagnostic. It does not retain the SMS body,
+OTP, receiving number, webhook data inside diagnostics, resolved host addresses, or exception text.
+To remove locally stored data:
 
-1. Clear the app's storage in Android settings, or
-2. Uninstall the app.
+1. Use **Clear history** in the relay-history screen to remove result metadata only,
+2. Clear the app's storage in Android settings to remove all local data, or
+3. Uninstall the app.
 
 Messages already delivered to Google Chat must be managed in the destination Chat space. Removing the app does not delete messages from Google Chat.
 
@@ -87,9 +93,11 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 - Android permissions can be revoked in system settings.
 - The webhook and relay mode can be replaced from the app.
 - The sender allow-list can be changed or cleared; clearing it allows all senders.
-- The latest-relay record is overwritten by the next qualifying delivery attempt.
-- The latest-relay card is hidden when no record exists and displays only result, sender, and
-  timestamp when populated.
+- The latest-relay card is hidden when no record exists and displays only result, sender,
+  timestamp, and a safe failure diagnostic when populated.
+- Tapping the latest-relay card opens all locally retained result metadata, newest first.
+- The confirmed **Clear history** action removes all result history and latest-card metadata while
+  preserving the relay configuration.
 - The header badge exposes configuration/test state but no message content or credential value.
 - The in-app **About & Privacy** screen summarizes storage, transmission, permissions, and controls.
 - A Google Chat administrator can revoke the webhook.
@@ -109,7 +117,7 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 - Anyone with access to the destination Chat space may be able to view forwarded content.
 - Anyone who obtains the webhook URL may be able to post into the Chat space.
 - Delivery retries can create duplicate messages.
-- Someone with access to the unlocked QA device can see the latest relay sender, timestamp, and
-  delivery result, but not the SMS body or OTP.
+- Someone with access to the unlocked QA device can see all retained relay senders, timestamps,
+  delivery results, and safe failure reasons, but not SMS bodies or OTPs.
 
 Use a restricted Chat space, limit device access, rotate exposed webhooks, and periodically review whether the relay is still required.

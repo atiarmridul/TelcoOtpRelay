@@ -41,17 +41,33 @@ class SmsReceiver : BroadcastReceiver() {
                     SimNumberResolver.resolve(appContext, sms.subscriptionId)
                 } ?: return@execute
 
-                val result = if (ChatSender.sendWithRetry(request.webhook, request.message)) {
+                val sendResult = ChatSender.sendWithRetry(request.webhook, request.message)
+                val result = if (sendResult.delivered) {
                     RelayDeliveryResult.DELIVERED
                 } else {
                     RelayDeliveryResult.FAILED
                 }
+                runCatching { RelayHistoryStore.migrateLatestIfNeeded(appContext, prefs) }
                 LastRelayStore.save(
                     preferences = prefs,
                     result = result,
                     sender = request.sender,
-                    timestampMillis = request.timestampMillis
+                    timestampMillis = request.timestampMillis,
+                    failureKind = sendResult.failureKind,
+                    httpStatusCode = sendResult.httpStatusCode
                 )
+                runCatching {
+                    RelayHistoryStore.append(
+                        appContext,
+                        LastRelayStatus(
+                            result = result,
+                            sender = request.sender,
+                            timestampMillis = request.timestampMillis,
+                            failureKind = sendResult.failureKind,
+                            httpStatusCode = sendResult.httpStatusCode
+                        )
+                    )
+                }
             } finally {
                 pending.finish()
             }
