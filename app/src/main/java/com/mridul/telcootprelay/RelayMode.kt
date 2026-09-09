@@ -18,4 +18,5 @@ object RelaySettings {
     const val WEBHOOK_KEY = "webhook"
     const val MODE_KEY = "relay_mode"
     const val SENDERS_KEY = "allowed_senders"
+    const val RECEIVING_NUMBER_KEY = "receiving_number"
 }

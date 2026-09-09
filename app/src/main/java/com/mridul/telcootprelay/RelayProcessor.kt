@@ -10,7 +10,8 @@ data class IncomingSms(
 data class RelayConfiguration(
     val webhook: String,
     val mode: RelayMode,
-    val allowedSenders: String?
+    val allowedSenders: String?,
+    val receivingNumber: String? = null
 )
 
 data class RelayRequest(
@@ -33,7 +34,10 @@ object RelayProcessor {
         return RelayRequest(
             webhook = configuration.webhook,
             message = SmsFormatter.format(
-                receivingNumber = receivingNumber(),
+                receivingNumber = configuration.receivingNumber
+                    ?.trim()
+                    ?.takeIf(String::isNotEmpty)
+                    ?: receivingNumber(),
                 sender = sms.sender,
                 timestampMillis = sms.timestampMillis,
                 body = sms.body

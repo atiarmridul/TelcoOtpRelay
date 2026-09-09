@@ -33,8 +33,8 @@ class ChatSenderTest {
         assertEquals(emptyList<Long>(), delays)
         assertTrue(connections.single().disconnected)
         assertEquals("POST", connections.single().requestMethod)
-        assertEquals(5000, connections.single().connectTimeout)
-        assertEquals(8000, connections.single().readTimeout)
+        assertEquals(2000, connections.single().connectTimeout)
+        assertEquals(2000, connections.single().readTimeout)
     }
 
     @Test
@@ -56,7 +56,27 @@ class ChatSenderTest {
         assertEquals(RelayFailureKind.HTTP_STATUS, result.failureKind)
         assertEquals(500, result.httpStatusCode)
         assertEquals(3, attempts)
-        assertEquals(listOf(1000L, 2000L), delays)
+        assertEquals(listOf(250L, 500L), delays)
+    }
+
+    @Test
+    fun `retry sequence stops when the receiver delivery budget is exhausted`() {
+        var now = 0L
+        var attempts = 0
+
+        ChatSender.sendWithRetry(
+            webhookUrl = "https://chat.googleapis.com/example",
+            text = "Test message",
+            connectionFactory = {
+                attempts += 1
+                now += 4000L
+                FakeConnection(500)
+            },
+            sleep = { now += it },
+            elapsedRealtime = { now }
+        )
+
+        assertEquals(2, attempts)
     }
 
     @Test

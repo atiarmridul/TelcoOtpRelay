@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.provider.Telephony
 import android.telephony.SubscriptionManager
 import androidx.core.content.ContextCompat
@@ -32,7 +34,8 @@ class SmsReceiver : BroadcastReceiver() {
                 val configuration = RelayConfiguration(
                     webhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "")?.trim().orEmpty(),
                     mode = RelayMode.fromStored(prefs.getString(RelaySettings.MODE_KEY, null)),
-                    allowedSenders = prefs.getString(RelaySettings.SENDERS_KEY, null)
+                    allowedSenders = prefs.getString(RelaySettings.SENDERS_KEY, null),
+                    receivingNumber = prefs.getString(RelaySettings.RECEIVING_NUMBER_KEY, null)
                 )
                 if (configuration.webhook.isBlank()) return@execute
 
@@ -41,37 +44,44 @@ class SmsReceiver : BroadcastReceiver() {
                     SimNumberResolver.resolve(appContext, sms.subscriptionId)
                 } ?: return@execute
 
-                val sendResult = ChatSender.sendWithRetry(request.webhook, request.message)
-                val result = if (sendResult.delivered) {
-                    RelayDeliveryResult.DELIVERED
-                } else {
-                    RelayDeliveryResult.FAILED
-                }
-                runCatching { RelayHistoryStore.migrateLatestIfNeeded(appContext, prefs) }
-                LastRelayStore.save(
-                    preferences = prefs,
-                    result = result,
+                val createdAtMillis = System.currentTimeMillis()
+                val pendingId = PendingRelayStore.insert(
+                    context = appContext,
+                    webhook = request.webhook,
+                    message = request.message,
                     sender = request.sender,
-                    timestampMillis = request.timestampMillis,
-                    failureKind = sendResult.failureKind,
-                    httpStatusCode = sendResult.httpStatusCode
+                    smsTimestampMillis = request.timestampMillis,
+                    createdAtMillis = createdAtMillis
                 )
-                runCatching {
-                    RelayHistoryStore.append(
+                if (!InternetConnectivity.isAvailable(appContext)) {
+                    RelayResultRecorder.record(
                         appContext,
-                        LastRelayStatus(
-                            result = result,
+                        PendingRelay(
+                            id = pendingId,
+                            webhook = request.webhook,
+                            message = request.message,
                             sender = request.sender,
-                            timestampMillis = request.timestampMillis,
-                            failureKind = sendResult.failureKind,
-                            httpStatusCode = sendResult.httpStatusCode
-                        )
+                            smsTimestampMillis = request.timestampMillis,
+                            createdAtMillis = createdAtMillis
+                        ),
+                        ChatSendResult(false, RelayFailureKind.NO_INTERNET)
                     )
                 }
+                RelayWorkScheduler.enqueue(appContext, pendingId)
             } finally {
                 pending.finish()
             }
         }
+    }
+}
+
+object InternetConnectivity {
+    fun isAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val activeNetwork = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }
 

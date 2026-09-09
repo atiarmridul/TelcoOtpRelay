@@ -35,21 +35,25 @@ This file records the important decisions visible in the current implementation.
 ## ADR-005: Store Configuration in App-Private Preferences
 
 - **Status:** Accepted
-- **Decision:** Store the webhook URL and relay mode in the `relay` `SharedPreferences` file.
+- **Decision:** Store the webhook URL, relay mode, optional receiving-number override, and sender allow-list in the `relay` `SharedPreferences` file.
 - **Reason:** The app needs only a few small persistent configuration values and does not require a
   database.
 - **Consequences:** Setup is simple, but the credential is not protected with application-level encryption. Backup remains disabled.
 
 ## ADR-006: Use Direct HTTPS Delivery With Bounded Retry
 
-- **Status:** Accepted
-- **Decision:** Post directly to Google Chat with `HttpURLConnection`, explicit timeouts, and no more than three attempts.
+- **Status:** Superseded by ADR-015
+- **Decision:** Post directly to Google Chat with `HttpURLConnection`, explicit per-stage timeouts,
+  no more than three attempts while time remains, and a six-second outer receiver deadline that
+  also bounds DNS waits.
 - **Reason:** This avoids a networking library, backend service, and continuous worker for one small request type.
-- **Consequences:** Delivery is best-effort. Process termination can lose messages, and ambiguous failures can produce duplicates.
+- **Consequences:** Delivery is best-effort. Process termination can lose messages, and ambiguous
+  failures can produce duplicates. A deadline releases the receiver queue but an interrupted HTTP
+  operation can still have an uncertain remote outcome.
 
 ## ADR-007: Do Not Persist Messages or Delivery State
 
-- **Status:** Superseded by ADR-011
+- **Status:** Superseded by ADR-011 and ADR-015
 - **Decision:** Keep SMS and delivery data in memory only.
 - **Reason:** This minimizes local retention of authentication data and avoids database and cleanup complexity.
 - **Consequences:** There is no offline queue, audit history, delivery status, or recovery after process death.
@@ -57,13 +61,13 @@ This file records the important decisions visible in the current implementation.
 ## ADR-008: Resolve the Receiving Number Opportunistically
 
 - **Status:** Accepted
-- **Decision:** Read the broadcast subscription ID and use permitted Android telephony APIs, falling back to `Unknown`.
+- **Decision:** Prefer an optional user-configured receiving number; otherwise read the broadcast subscription ID and use permitted Android telephony APIs, falling back to `Unknown`.
 - **Reason:** Dual-SIM QA workflows benefit from identifying the receiving line, but carrier and platform support is inconsistent.
-- **Consequences:** Phone-number permission improves metadata but is not required to forward a message. `Unknown` is a valid expected result.
+- **Consequences:** Phone-number permission improves metadata but is not required to forward a message. The configured override is stored locally and transmitted with qualifying messages. `Unknown` remains valid when neither source provides a number.
 
 ## ADR-009: Serialize Delivery Work
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-015
 - **Decision:** Use one shared single-thread executor for receiver processing.
 - **Reason:** This bounds thread creation and keeps simultaneous SMS delivery ordered within the process.
 - **Consequences:** A slow request delays later messages, and queued broadcasts can outlive Android's receiver execution window.
@@ -129,6 +133,21 @@ This file records the important decisions visible in the current implementation.
   attempts until app data is cleared or the app is removed. SMS bodies, OTPs, receiving numbers,
   webhook URLs, host addresses, and raw exception text remain excluded. The history is not a queue
   and never retries or resends a message.
+
+## ADR-015: Persist Pending Relays and Retry With WorkManager
+
+- **Status:** Accepted
+- **Decision:** Persist each qualifying formatted message and its webhook in an app-private SQLite
+  queue before finishing the SMS broadcast. Use network-constrained one-time WorkManager jobs to
+  retry transient failures with exponential backoff. Delete a record after success, a permanent
+  HTTP failure, or a separate unconstrained expiry job reaches 24 hours.
+- **Reason:** Direct network work inside Xiaomi's SMS broadcast window repeatedly timed out and
+  blocked or lost later relays. WorkManager provides durable, system-scheduled work across process
+  death, temporary disconnection, and reboot.
+- **Consequences:** Delivery reliability improves but is not guaranteed, OEM background controls
+  can delay jobs, and ambiguous network outcomes can create duplicates. Qualifying SMS content,
+  including an OTP when present, and the selected webhook are stored without app-level encryption
+  in app-private storage for up to 24 hours. Result history remains a separate metadata-only store.
 
 ## Changing a Decision
 

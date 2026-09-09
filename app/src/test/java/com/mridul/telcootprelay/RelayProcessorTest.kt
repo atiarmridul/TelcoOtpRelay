@@ -4,10 +4,26 @@ import java.util.TimeZone
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class RelayProcessorTest {
+    @Test
+    fun `configured receiving number overrides unavailable SIM number`() {
+        val request = RelayProcessor.prepare(
+            RelayConfiguration(
+                webhook = "https://chat.googleapis.com/synthetic",
+                mode = RelayMode.ALL_MESSAGES,
+                allowedSenders = null,
+                receivingNumber = "+8801812345678"
+            ),
+            IncomingSms("Synthetic message", "TEST", 0L, 1)
+        ) { error("SIM lookup should not run when an override is configured") }
+
+        assertTrue(request!!.message.startsWith("Receiving number: +8801812345678\n"))
+    }
+
     private lateinit var originalTimeZone: TimeZone
 
     @Before

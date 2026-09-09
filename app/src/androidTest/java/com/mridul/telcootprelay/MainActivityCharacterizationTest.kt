@@ -126,6 +126,7 @@ class MainActivityCharacterizationTest {
         preferences().edit()
             .putString(RelaySettings.WEBHOOK_KEY, "https://chat.googleapis.com/synthetic")
             .putString(RelaySettings.SENDERS_KEY, "BANK-OTP")
+            .putString(RelaySettings.RECEIVING_NUMBER_KEY, "+8801812345678")
             .putString(RelaySettings.MODE_KEY, RelayMode.ALL_MESSAGES.name)
             .commit()
 
@@ -138,6 +139,10 @@ class MainActivityCharacterizationTest {
                 assertEquals(
                     "BANK-OTP",
                     activity.findViewById<EditText>(R.id.senders_edit).text.toString()
+                )
+                assertEquals(
+                    "+8801812345678",
+                    activity.findViewById<EditText>(R.id.receiving_number_edit).text.toString()
                 )
                 assertEquals(1, activity.findViewById<Spinner>(R.id.relay_mode_spinner).selectedItemPosition)
                 assertEquals("Active", activity.findViewById<TextView>(R.id.status_text).text.toString())
@@ -222,6 +227,24 @@ class MainActivityCharacterizationTest {
                 .check(matches(isDisplayed()))
             onView(withText("Clear history")).check(matches(isDisplayed()))
             pressBack()
+        }
+    }
+
+    @Test
+    fun noInternetFailureAppearsInStatusAndHistory() {
+        preferences().edit()
+            .putString(LastRelayStore.RESULT_KEY, RelayDeliveryResult.FAILED.name)
+            .putString(LastRelayStore.SENDER_KEY, "TEST-SENDER")
+            .putLong(LastRelayStore.TIMESTAMP_KEY, 0L)
+            .putString(LastRelayStore.FAILURE_KIND_KEY, RelayFailureKind.NO_INTERNET.name)
+            .commit()
+
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            onView(withText("No internet connection was available.")).check(matches(isDisplayed()))
+            scenario.onActivity { activity ->
+                activity.findViewById<View>(R.id.status_card).performClick()
+            }
+            onView(withText("No internet connection was available.")).check(matches(isDisplayed()))
         }
     }
 

@@ -213,6 +213,33 @@
                         android:padding="12dp" />
                 </FrameLayout>
 
+                <TextView
+                    style="@style/Widget.SmsRelay.SectionTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    android:text="@string/receiving_number_label" />
+
+                <EditText
+                    android:id="@+id/receiving_number_edit"
+                    style="@style/Widget.SmsRelay.Input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/receiving_number_hint"
+                    android:importantForAutofill="no"
+                    android:inputType="phone"
+                    android:maxLines="1"
+                    android:minLines="1" />
+
+                <TextView
+                    style="@style/Widget.SmsRelay.SupportingText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/receiving_number_description"
+                    android:textSize="12sp" />
+
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"

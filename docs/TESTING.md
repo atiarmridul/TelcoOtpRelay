@@ -108,12 +108,18 @@ Current `RelayProcessor` coverage includes:
 Current `ChatSender` coverage includes:
 
 - Success without unnecessary retries
-- Three-attempt retry bounds and the 1-second/2-second delay schedule
+- Three-attempt retry bounds, short retry delays, and the shared eight-second receiver budget
 - Connection failures and non-success HTTP responses
 - Connection cleanup and configured timeouts
 - Privacy-safe classification of connection timeout, response timeout, DNS, HTTP, and other
-  network failures
+  network failures, including no validated internet connection
 - Lossless standard JSON encoding for control characters and Unicode
+
+Current `RelayWorkPolicy` coverage includes:
+
+- The 24-hour pending-relay expiry boundary
+- Retry classification for transient network failures, HTTP 408, HTTP 429, and HTTP 5xx
+- Permanent-failure classification for other HTTP 4xx responses
 
 Run the JVM tests directly with:
 
@@ -190,10 +196,11 @@ Avoid real SMS bodies and active webhook credentials in test fixtures.
 | Restore the persisted form values    | Header badge returns to **Active** and Save shows **Saved**. |
 | Test a valid webhook                  | Badge transitions through **Testing** to **Connected** or **Failed**. |
 | No latest-relay metadata              | Latest-relay card is hidden without leaving empty space. |
-| Missing phone-number permission      | Message uses `Receiving number: Unknown`.                |
+| Missing phone-number permission      | Configured override is used, otherwise the message uses `Receiving number: Unknown`. |
 | Carrier hides own number             | Message uses `Receiving number: Unknown`.                |
+| Carrier hides own number with override | Message uses the configured receiving number.          |
 | Invalid webhook prefix               | Configuration is rejected.                               |
-| Offline device                       | Attempts remain bounded and the receiver finishes.       |
+| Offline device                       | No-internet failure is stored immediately and the receiver finishes. |
 | Successful qualifying relay          | Latest status shows delivered, sender, and timestamp only. |
 | Failed qualifying relay              | Latest status shows failure and exhausted retries.       |
 | Tap latest-relay card                 | Local history opens newest first with safe failure reasons. |

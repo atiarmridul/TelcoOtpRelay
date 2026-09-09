@@ -87,6 +87,9 @@ class RelayHistoryActivity : Activity() {
     }
 
     private fun failureReason(status: LastRelayStatus): String = when (status.failureKind) {
+        RelayFailureKind.NO_INTERNET -> getString(R.string.last_relay_no_internet)
+        RelayFailureKind.DELIVERY_DEADLINE -> getString(R.string.last_relay_delivery_deadline)
+        RelayFailureKind.RETRY_EXPIRED -> getString(R.string.last_relay_retry_expired)
         RelayFailureKind.HTTP_STATUS -> status.httpStatusCode?.let {
             getString(R.string.last_relay_http_failure, it)
         } ?: getString(R.string.last_relay_retries_exhausted)

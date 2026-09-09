@@ -60,6 +60,8 @@ Deleting the current file alone does not remove a secret from Git history.
 - Keep Android security updates current.
 - Do not enable backups or diagnostic logging that captures SMS content.
 - Keep the last-relay UI limited to result, sender, and timestamp; never add SMS bodies or OTPs.
+- Treat the pending-relay database as sensitive: it can contain a qualifying SMS body, OTP, and
+  webhook until delivery ends or the 24-hour expiry job removes it.
 - Remove the app and revoke its webhook when the relay is retired.
 
 ## APK Integrity

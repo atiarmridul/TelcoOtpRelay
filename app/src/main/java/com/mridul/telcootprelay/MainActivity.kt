@@ -30,6 +30,7 @@ class MainActivity : Activity() {
     private lateinit var binding: ActivityMainBinding
     private val webhookEdit: EditText get() = binding.webhookEdit
     private val sendersEdit: EditText get() = binding.sendersEdit
+    private val receivingNumberEdit: EditText get() = binding.receivingNumberEdit
     private val relayModeSpinner: Spinner get() = binding.relayModeSpinner
     private val modeDescription: TextView get() = binding.modeDescription
     private val allMessagesPrivacyWarning: TextView get() = binding.allMessagesPrivacyWarning
@@ -104,6 +105,7 @@ class MainActivity : Activity() {
 
     private fun configureForm() {
         webhookEdit.setText(prefs.getString(RelaySettings.WEBHOOK_KEY, ""))
+        receivingNumberEdit.setText(prefs.getString(RelaySettings.RECEIVING_NUMBER_KEY, ""))
         sendersEdit.setText(prefs.getString(RelaySettings.SENDERS_KEY, ""))
         relayModeSpinner.adapter = ArrayAdapter.createFromResource(
             this,
@@ -147,6 +149,15 @@ class MainActivity : Activity() {
 
             override fun afterTextChanged(s: Editable?) = Unit
         })
+        receivingNumberEdit.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                showUnsavedIfNeeded()
+            }
+
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
         relayModeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 updateModeDescription()
@@ -160,12 +171,15 @@ class MainActivity : Activity() {
     private fun showUnsavedIfNeeded() {
         val savedWebhook = prefs.getString(RelaySettings.WEBHOOK_KEY, "").orEmpty()
         val savedSenders = prefs.getString(RelaySettings.SENDERS_KEY, "").orEmpty()
+        val savedReceivingNumber = prefs.getString(RelaySettings.RECEIVING_NUMBER_KEY, "").orEmpty()
         val formState = ConfigurationState.edited(
             currentWebhook = webhookEdit.text.toString(),
             currentSenders = sendersEdit.text.toString(),
+            currentReceivingNumber = receivingNumberEdit.text.toString(),
             currentMode = selectedRelayMode(),
             savedWebhook = savedWebhook,
             savedSenders = savedSenders,
+            savedReceivingNumber = savedReceivingNumber,
             savedMode = loadRelayMode()
         )
         updateSaveButton(formState.hasUnsavedChanges)
@@ -193,10 +207,12 @@ class MainActivity : Activity() {
         }
         val relayMode = selectedRelayMode()
         val senders = SenderFilter.serialize(sendersEdit.text.toString())
+        val receivingNumber = receivingNumberEdit.text.toString().trim()
         prefs.edit()
             .putString(RelaySettings.WEBHOOK_KEY, webhook)
             .putString(RelaySettings.MODE_KEY, relayMode.name)
             .putString(RelaySettings.SENDERS_KEY, senders)
+            .putString(RelaySettings.RECEIVING_NUMBER_KEY, receivingNumber)
             .apply()
         sendersEdit.setText(senders)
         updateSaveButton(false)
@@ -271,6 +287,10 @@ class MainActivity : Activity() {
         lastRelayDetail.visibility = if (delivered) View.GONE else View.VISIBLE
         if (!delivered) {
             lastRelayDetail.text = when (lastRelay.failureKind) {
+                RelayFailureKind.NO_INTERNET -> getString(R.string.last_relay_no_internet)
+                RelayFailureKind.DELIVERY_DEADLINE ->
+                    getString(R.string.last_relay_delivery_deadline)
+                RelayFailureKind.RETRY_EXPIRED -> getString(R.string.last_relay_retry_expired)
                 RelayFailureKind.HTTP_STATUS -> lastRelay.httpStatusCode?.let {
                     getString(R.string.last_relay_http_failure, it)
                 } ?: getString(R.string.last_relay_retries_exhausted)

@@ -23,13 +23,16 @@ object ConfigurationState {
     fun edited(
         currentWebhook: String,
         currentSenders: String?,
+        currentReceivingNumber: String? = null,
         currentMode: RelayMode,
         savedWebhook: String?,
         savedSenders: String?,
+        savedReceivingNumber: String? = null,
         savedMode: RelayMode
     ): ConfigurationFormState {
         val changed = currentWebhook.trim() != savedWebhook.orEmpty() ||
             SenderFilter.serialize(currentSenders) != savedSenders.orEmpty() ||
+            currentReceivingNumber.orEmpty().trim() != savedReceivingNumber.orEmpty() ||
             currentMode != savedMode
 
         return ConfigurationFormState(

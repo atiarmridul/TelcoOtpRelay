@@ -18,7 +18,9 @@ For an incoming SMS, the app may process:
 - Receiving subscription identifier during in-memory processing
 
 The app also processes the Google Chat webhook URL entered by the user.
-It stores the user's relay-mode choice and optional sender allow-list.
+It stores the user's relay-mode choice, optional receiving-number override, and optional sender allow-list.
+For a qualifying message, the formatted body and selected webhook are stored in an app-private
+pending-relay database until delivery succeeds, a permanent failure occurs, or 24 hours elapse.
 After a qualifying delivery attempt finishes, it stores the delivered/failed result, sender, SMS
 timestamp, and a privacy-safe failure category or HTTP status. The latest result appears in the
 home-screen card; tapping that card opens the complete local result history. It does not store
@@ -44,17 +46,18 @@ SMS body, OTP, receiving number, or webhook value.
 |-----------------------|-----------------|---------------------------------------------------------------------|
 | Webhook URL           | Yes             | Stored in app-private `SharedPreferences`.                          |
 | Relay mode            | Yes             | Stored in app-private `SharedPreferences`; defaults to OTP-only.    |
+| Receiving-number override | Yes          | Optional configuration used when Android cannot expose the SIM number. |
 | Sender allow-list     | Yes             | Optional originating addresses; blank means all senders.           |
 | Relay result history | Yes              | Delivered/failed state for every qualifying delivery attempt.      |
 | Relay sender history | Yes              | Sender associated with each qualifying delivery attempt.           |
 | Relay timestamps     | Yes              | SMS timestamp associated with every history entry.                  |
 | Failure diagnostics  | Yes              | Safe category and optional HTTP status; no URL or exception text.   |
-| SMS body              | No              | Held temporarily in process memory.                                 |
-| SMS body or OTP history | No            | The local database contains result metadata only.                  |
+| Pending formatted SMS and webhook | Yes | App-private queue; deleted after success, permanent failure, or 24 hours. |
+| SMS body or OTP history | No            | The result-history database contains metadata only.                |
 | SIM number            | No              | Resolved for the current message only.                              |
 
-Application backup is disabled. Clearing app data or uninstalling the app removes its stored webhook,
-relay-mode and sender configuration, and relay-result history.
+Application backup is disabled. Clearing app data or uninstalling the app removes its configuration,
+pending relays, and relay-result history.
 
 ## Data Transmission
 
@@ -72,17 +75,22 @@ The app does not send data to analytics, advertising, crash-reporting, or develo
 | `RECEIVE_SMS` | Allows the app to receive incoming SMS broadcasts. |
 | `READ_PHONE_NUMBERS` | Allows an attempt to identify the receiving SIM number. |
 | `INTERNET` | Allows HTTPS delivery to Google Chat. |
+| `ACCESS_NETWORK_STATE` | Allows the app to detect whether Android has a validated internet connection. |
+| `RECEIVE_BOOT_COMPLETED` | Allows WorkManager to reschedule pending relays after reboot. |
+| `WAKE_LOCK` | Allows WorkManager to keep the processor awake while a scheduled relay runs. |
+| `FOREGROUND_SERVICE` | Declared by WorkManager for compatible long-running work; this app does not start an always-running service. |
 
 Phone-number access may return no value even when permission is granted.
 
 ## Retention and Deletion
 
-The app itself retains the webhook, relay-mode and sender configuration, and relay-result history
-containing sender, timestamp, result, and safe failure diagnostic. It does not retain the SMS body,
-OTP, receiving number, webhook data inside diagnostics, resolved host addresses, or exception text.
+The app retains configuration and relay-result history until cleared. A queued SMS body, OTP when
+present, and webhook are retained only while that relay is pending, for at most 24 hours. Result
+history does not retain SMS bodies, OTPs, receiving numbers, webhook data, resolved host addresses,
+or exception text.
 To remove locally stored data:
 
-1. Use **Clear history** in the relay-history screen to remove result metadata only,
+1. Use **Clear history** in the relay-history screen to remove result metadata only (it does not cancel pending relays),
 2. Clear the app's storage in Android settings to remove all local data, or
 3. Uninstall the app.
 
@@ -91,7 +99,7 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 ## User and Administrator Controls
 
 - Android permissions can be revoked in system settings.
-- The webhook and relay mode can be replaced from the app.
+- The webhook, relay mode, and receiving-number override can be replaced from the app.
 - The sender allow-list can be changed or cleared; clearing it allows all senders.
 - The latest-relay card is hidden when no record exists and displays only result, sender,
   timestamp, and a safe failure diagnostic when populated.
@@ -117,7 +125,7 @@ Messages already delivered to Google Chat must be managed in the destination Cha
 - Anyone with access to the destination Chat space may be able to view forwarded content.
 - Anyone who obtains the webhook URL may be able to post into the Chat space.
 - Delivery retries can create duplicate messages.
-- Someone with access to the unlocked QA device can see all retained relay senders, timestamps,
-  delivery results, and safe failure reasons, but not SMS bodies or OTPs.
+- Someone with access to the unlocked QA device can see relay-result metadata in the UI. Pending
+  SMS bodies, OTPs, and webhooks are not shown by the app but remain sensitive app-private data.
 
 Use a restricted Chat space, limit device access, rotate exposed webhooks, and periodically review whether the relay is still required.

@@ -30,7 +30,7 @@ to the configured Google Chat webhook.
   addresses.
 - OTP-only mode forwards likely OTP messages and rejects non-qualifying messages.
 - Existing installations without a saved mode remain OTP-only.
-- Missing SIM-number data is represented honestly as `Unknown`.
+- A configured receiving-number override is preferred; otherwise missing SIM-number data is represented honestly as `Unknown`.
 - Processing remains event-driven and avoids continuous battery usage.
 - Relay-result history is stored locally with result, sender, SMS timestamp, and a privacy-safe
   failure category or HTTP status. SMS bodies, OTPs, receiving numbers, webhook data, host
@@ -44,7 +44,7 @@ to the configured Google Chat webhook.
 - Sending or replying to SMS messages
 - MMS, RCS, email, or notification forwarding
 - User accounts, server-side APIs, or a management dashboard
-- Guaranteed delivery or durable offline queuing
+- Guaranteed delivery or retry beyond the 24-hour retention window
 - Duplicate suppression
 - OTP autofill into another application
 - Analytics, advertising, or location tracking
@@ -95,7 +95,8 @@ Body: <complete original SMS body>
 - The user understands that **All incoming messages** mode can forward personal and
   non-authentication content.
 - Sender filtering is applied in addition to the selected relay mode.
-- Android may terminate the process before long asynchronous delivery completes.
+- A qualifying relay is persisted and handed to WorkManager before the receiver finishes. Transient
+  failures retry when network is available, and pending content expires after 24 hours.
 
 ## Source of Truth
 

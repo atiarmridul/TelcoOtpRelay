@@ -17,7 +17,7 @@ When an SMS arrives, the app:
 2. Reconstructs the complete body of multipart messages.
 3. Applies the optional sender allow-list; a blank list accepts every sender.
 4. Applies the saved relay mode: all incoming messages, or OTP messages only.
-5. Resolves the receiving SIM number when Android and the carrier expose it.
+5. Uses the optional configured receiving number, or resolves it from the SIM when Android and the carrier expose it.
 6. Formats the receiving number, sender, timestamp, and original body.
 7. Sends the message to a configured Google Chat webhook.
 
@@ -201,6 +201,7 @@ data-handling information, and the installed version remains pinned to the botto
 | `RECEIVE_SMS` | Detect incoming SMS messages. |
 | `READ_PHONE_NUMBERS` | Resolve the receiving SIM number when available. |
 | `INTERNET` | Send qualifying messages to Google Chat. |
+| `ACCESS_NETWORK_STATE` | Detect when no validated internet connection is available. |
 
 The app does not request contacts, camera, microphone, location, storage, notification, or default-SMS-app access.
 
@@ -245,17 +246,21 @@ action-control dimensions, requested permissions, and SMS receiver contract.
 - No wake lock or network heartbeat
 - No GPS or location access
 - No SMS database or history scan
-- One shared background executor
-- Bounded 5-second connection and 8-second read timeouts
+- One-time, network-constrained WorkManager jobs; no periodic work
+- An eight-second overall delivery budget with two-second per-stage timeout caps
 - At most three webhook attempts per qualifying SMS
+- Immediate privacy-safe failure metadata when Android reports no validated internet connection
+- Exponential retry of transient failures, with pending data removed after at most 24 hours
 - Network connections closed after every attempt
 
 ## Important Limitations
 
-- Android and mobile carriers do not always expose the SIM's own phone number.
+- Android and mobile carriers do not always expose the SIM's own phone number; an optional configured override handles this case.
 - OTP detection is regex-based and can produce false positives or miss unusual OTP formats.
-- Messages are delivered on a best-effort basis; there is no persistent retry queue.
+- Qualifying messages are queued in app-private storage and transient failures are retried for up to 24 hours. Android or OEM battery restrictions can still delay work, so delivery is not guaranteed.
 - Delivery retries can produce duplicate Google Chat messages if a response is lost.
+- A hard-deadline failure is reported as uncertain because an interrupted network request may have
+  reached Google Chat without returning a response.
 - Every qualifying message is forwarded; there is no duplicate suppression.
 - The app handles SMS only. It does not process MMS messages.
 
@@ -264,7 +269,9 @@ action-control dimensions, requested permissions, and SMS receiver contract.
 - Use this app only on an authorized, dedicated QA device.
 - Treat the Google Chat webhook URL as a credential and do not commit it to Git.
 - The webhook, relay mode, optional sender list, and relay-result history are stored locally in the
-  app's private storage. SMS bodies, OTPs, receiving numbers, and raw error details are not retained.
+  app's private storage. A qualifying SMS body and its webhook are retained only while delivery is
+  pending, for at most 24 hours. Result history does not retain bodies, OTPs, receiving numbers, or
+  raw error details.
 - SMS content is sent according to the saved relay mode. **All incoming messages** mode forwards
   non-OTP messages too.
 - Application backup is disabled in the Android manifest.

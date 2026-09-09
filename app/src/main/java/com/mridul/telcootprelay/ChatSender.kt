@@ -7,6 +7,9 @@ import java.net.URL
 import org.json.JSONObject
 
 enum class RelayFailureKind {
+    NO_INTERNET,
+    DELIVERY_DEADLINE,
+    RETRY_EXPIRED,
     HTTP_STATUS,
     CONNECTION_TIMEOUT,
     RESPONSE_TIMEOUT,
@@ -21,29 +24,36 @@ data class ChatSendResult(
 )
 
 object ChatSender {
-    private const val CONNECT_TIMEOUT_MS = 5000
-    private const val READ_TIMEOUT_MS = 8000
+    private const val DELIVERY_BUDGET_MS = 8000L
+    private const val MAX_STAGE_TIMEOUT_MS = 2000
 
     fun sendWithRetry(webhookUrl: String, text: String): ChatSendResult = sendWithRetry(
         webhookUrl = webhookUrl,
         text = text,
         connectionFactory = { URL(it).openConnection() as HttpURLConnection },
-        sleep = Thread::sleep
+        sleep = Thread::sleep,
+        elapsedRealtime = { System.nanoTime() / 1_000_000L }
     )
 
     internal fun sendWithRetry(
         webhookUrl: String,
         text: String,
         connectionFactory: (String) -> HttpURLConnection,
-        sleep: (Long) -> Unit
+        sleep: (Long) -> Unit,
+        elapsedRealtime: () -> Long = { System.nanoTime() / 1_000_000L }
     ): ChatSendResult {
+        val deadline = elapsedRealtime() + DELIVERY_BUDGET_MS
         var delayMs = 0L
         var lastResult = ChatSendResult(false, RelayFailureKind.NETWORK_FAILURE)
         repeat(3) { attempt ->
+            val remainingBeforeDelay = deadline - elapsedRealtime()
+            if (remainingBeforeDelay <= delayMs) return lastResult
             if (delayMs > 0) sleep(delayMs)
-            lastResult = sendOnce(webhookUrl, text, connectionFactory)
+            val remaining = deadline - elapsedRealtime()
+            if (remaining <= 0) return lastResult
+            lastResult = sendOnce(webhookUrl, text, connectionFactory, remaining)
             if (lastResult.delivered) return lastResult
-            delayMs = if (attempt == 0) 1000L else 2000L
+            delayMs = if (attempt == 0) 250L else 500L
         }
         return lastResult
     }
@@ -51,7 +61,8 @@ object ChatSender {
     private fun sendOnce(
         webhookUrl: String,
         text: String,
-        connectionFactory: (String) -> HttpURLConnection
+        connectionFactory: (String) -> HttpURLConnection,
+        remainingBudgetMs: Long
     ): ChatSendResult {
         var connection: HttpURLConnection? = null
         var waitingForResponse = false
@@ -59,8 +70,14 @@ object ChatSender {
             connection = connectionFactory(webhookUrl)
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            connection.connectTimeout = CONNECT_TIMEOUT_MS
-            connection.readTimeout = READ_TIMEOUT_MS
+            // A connection and response can consume their timeouts serially. Splitting the
+            // remaining receiver budget keeps the complete attempt inside the hard deadline.
+            val stageTimeout = minOf(
+                MAX_STAGE_TIMEOUT_MS,
+                (remainingBudgetMs / 2).coerceAtLeast(1L).toInt()
+            )
+            connection.connectTimeout = stageTimeout
+            connection.readTimeout = stageTimeout
             connection.doOutput = true
             connection.useCaches = false
 

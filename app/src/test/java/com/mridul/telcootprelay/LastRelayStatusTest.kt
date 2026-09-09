@@ -59,6 +59,42 @@ class LastRelayStatusTest {
     }
 
     @Test
+    fun `restores no internet failure diagnostic`() {
+        val status = LastRelayStatus.fromStored(
+            result = "FAILED",
+            sender = "TEST-SENDER",
+            timestampMillis = 0L,
+            failureKind = "NO_INTERNET"
+        )
+
+        assertEquals(RelayFailureKind.NO_INTERNET, status?.failureKind)
+    }
+
+    @Test
+    fun `restores receiver deadline failure diagnostic`() {
+        val status = LastRelayStatus.fromStored(
+            result = "FAILED",
+            sender = "TEST-SENDER",
+            timestampMillis = 0L,
+            failureKind = "DELIVERY_DEADLINE"
+        )
+
+        assertEquals(RelayFailureKind.DELIVERY_DEADLINE, status?.failureKind)
+    }
+
+    @Test
+    fun `restores expired retry diagnostic`() {
+        val status = LastRelayStatus.fromStored(
+            result = "FAILED",
+            sender = "TEST-SENDER",
+            timestampMillis = 0L,
+            failureKind = "RETRY_EXPIRED"
+        )
+
+        assertEquals(RelayFailureKind.RETRY_EXPIRED, status?.failureKind)
+    }
+
+    @Test
     fun `ignores unknown failure diagnostics for backward compatibility`() {
         val status = LastRelayStatus.fromStored(
             result = "FAILED",

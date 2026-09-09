@@ -49,4 +49,20 @@ class ConfigurationStateTest {
         assertEquals(ConfigurationStatus.UNSAVED, base.status)
         assertTrue(base.hasUnsavedChanges)
     }
+
+    @Test
+    fun `changed receiving number produces unsaved state`() {
+        val state = ConfigurationState.edited(
+            currentWebhook = "https://chat.googleapis.com/example",
+            currentSenders = null,
+            currentReceivingNumber = "+8801812345678",
+            currentMode = RelayMode.OTP_ONLY,
+            savedWebhook = "https://chat.googleapis.com/example",
+            savedSenders = null,
+            savedReceivingNumber = null,
+            savedMode = RelayMode.OTP_ONLY
+        )
+
+        assertTrue(state.hasUnsavedChanges)
+    }
 }

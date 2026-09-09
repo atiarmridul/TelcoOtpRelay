@@ -50,7 +50,11 @@ class SmsReceiverContractTest {
             setOf(
                 Manifest.permission.RECEIVE_SMS,
                 Manifest.permission.READ_PHONE_NUMBERS,
-                Manifest.permission.INTERNET
+                Manifest.permission.INTERNET,
+                Manifest.permission.ACCESS_NETWORK_STATE,
+                Manifest.permission.WAKE_LOCK,
+                Manifest.permission.RECEIVE_BOOT_COMPLETED,
+                Manifest.permission.FOREGROUND_SERVICE
             ),
             userRelevantPermissions
         )

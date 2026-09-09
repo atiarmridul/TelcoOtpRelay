@@ -16,11 +16,19 @@ flowchart TD
     S -- No --> F
     S -- Yes --> E{RelayMode accepts message?}
     E -- No --> F[Finish broadcast]
-    E -- Yes --> G[Resolve receiving SIM number]
+    E -- Yes --> G[Use configured receiving number or resolve SIM number]
     G --> H[SmsFormatter creates message]
-    H --> I[ChatSender posts to Google Chat]
-    I --> J[Store latest result and append privacy-safe local history]
+    H --> Q[Persist pending relay and enqueue WorkManager]
+    Q --> N{Validated internet available now?}
+    N -- No --> J[Record No internet metadata]
+    N -- Yes --> F
     J --> F
+    Q --> W[Connected delivery worker]
+    W --> I[ChatSender posts to Google Chat]
+    I --> R{Delivered or permanent failure?}
+    R -- Yes --> X[Record result and delete pending relay]
+    R -- No --> Y[Record attempt and retry with backoff]
+    Q --> Z[Expiry worker deletes pending relay after retry window]
 ```
 
 ## Components
@@ -38,6 +46,7 @@ card-based configuration surface. It:
 - Masks the webhook by default and provides an explicit Show/Hide control
 - Shows a dedicated privacy warning when **All incoming messages** is selected
 - Stores the webhook and relay mode in the app-private `relay` preferences file
+- Stores an optional receiving-number override for carriers that do not expose the SIM number
 - Stores an optional sender allow-list in the same app-private preferences file; blank allows all
   senders
 - Displays compact `Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, and `Failed`
@@ -88,10 +97,8 @@ The manifest-registered broadcast receiver owns the Android broadcast lifetime. 
 - Delegates multipart reconstruction and Android metadata extraction to `SmsBroadcastParser`
 - Delegates sender filtering, relay-mode selection, and request preparation to `RelayProcessor`
 - Resolves the SIM number lazily only after a message qualifies
-- Sends the prepared request and records its result
-- Overwrites the last-relay record with the delivery result, sender, SMS timestamp, and a
-  privacy-safe failure category or HTTP status
-- Appends the same privacy-safe metadata to the local relay-history database
+- Persists the prepared request and enqueues delivery and expiry work
+- Records an immediate privacy-safe no-internet result when appropriate
 - Finishes the pending broadcast in a `finally` block
 
 The single-thread executor serializes simultaneous messages and prevents one thread from being created per SMS.
@@ -151,11 +158,22 @@ The formatter creates a stable plain-text message containing:
 ### `ChatSender`
 
 The sender builds its payload with the platform `JSONObject` encoder and posts it through
-`HttpURLConnection`. It uses a 5-second connection timeout and 8-second read timeout, closes each
-connection, and makes no more than three attempts. Its result distinguishes HTTP status,
+`HttpURLConnection`. It uses a shared eight-second delivery budget, caps connect and read stages at
+two seconds, closes each connection, and makes no more than three attempts when time remains. Its result distinguishes HTTP status,
 connection timeout, response timeout, DNS failure, and another network failure without retaining
 URLs or exception messages. Injectable connection and delay functions allow deterministic JVM
 verification without changing the production API.
+
+`SmsReceiver` persists each prepared request in `PendingRelayStore`, enqueues unique one-time
+WorkManager jobs, and finishes the broadcast without waiting for network I/O. The delivery worker
+requires a connected network, calls `ChatSender`, and retries transient network failures and HTTP
+408, 429, and 5xx responses with exponential backoff. Permanent HTTP failures and successful
+deliveries remove the pending record.
+
+A separate unconstrained expiry job removes an undelivered record after the 24-hour retry window,
+even when the phone remains offline. It records the privacy-safe `RETRY_EXPIRED` reason. If Android
+reports no validated internet when the SMS arrives, the receiver immediately records
+`NO_INTERNET`; the queued worker can still deliver after connectivity returns.
 
 ### `LastRelayStatus`
 
@@ -176,9 +194,9 @@ app data is cleared or the app is removed; it is display-only and is not a deliv
 |------------------------|--------------------------------------|------------------------------------------------------------|
 | Google Chat webhook    | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
 | Relay mode             | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
+| Receiving-number override | App-private `SharedPreferences`   | Until replaced, app data is cleared, or the app is removed |
 | Sender allow-list      | App-private `SharedPreferences`      | Until replaced, app data is cleared, or the app is removed |
-| Incoming SMS body      | Broadcast payload and process memory | During processing                                          |
-| Formatted Chat message | Process memory                       | During delivery                                            |
+| Pending relay request  | App-private SQLite database           | Until delivered, permanently failed, or 24 hours elapse    |
 | Latest relay metadata  | App-private `SharedPreferences`      | Until overwritten, app data is cleared, or app is removed  |
 | Relay-result history   | App-private SQLite database          | Until app data is cleared or the app is removed             |
 | OTP history            | Not stored                           | None                                                       |
@@ -187,20 +205,21 @@ app data is cleared or the app is removed; it is display-only and is not a deliv
 
 Delivery is best-effort:
 
-- A failed request is retried within the current process.
-- Failed messages are not persisted for later delivery.
-- A failed history entry indicates that the bounded in-process retries were exhausted; it does
-  not schedule another retry.
+- A qualifying request is persisted before the broadcast finishes.
+- Transient failures are retried by WorkManager for up to 24 hours and can survive process death or reboot.
+- HTTP 4xx responses other than 408 and 429 are treated as permanent failures.
+- Failure history may show an intermediate attempt before a later retry succeeds.
 - A request accepted by Google followed by a lost response can be sent again.
 - There is no duplicate-suppression or idempotency key.
-- Process termination can interrupt queued or active work.
+- OEM background restrictions can delay WorkManager execution.
 
 These tradeoffs keep the app small and battery-efficient but do not provide guaranteed delivery.
 
 ## Platform and Security Boundaries
 
 - The receiver requires the system `BROADCAST_SMS` permission from its sender.
-- The application requests only SMS reception, phone-number access, and internet access.
+- The application uses SMS reception, phone-number, internet, network-state, reboot, and wake-lock
+  permissions required by its receiver and WorkManager scheduling.
 - App backup is disabled.
 - The phone number may legitimately be unavailable even when permission is granted.
 - The webhook is a credential and must not appear in source control or logs.
@@ -216,10 +235,9 @@ The current architecture intentionally excludes:
 - Foreground services
 - Polling and periodic workers
 - Alarms and timers
-- Wake locks
+- App-managed wake locks
 - SMS database access
 - MMS handling
 - Analytics and telemetry
-- Persistent delivery queues
 
 Adding one of these mechanisms should include a documented requirement, battery and privacy impact, failure strategy, and test plan.
