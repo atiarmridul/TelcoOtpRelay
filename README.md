@@ -1,72 +1,329 @@
-# SMS Relay
+# Telco OTP Relay
 
 [![Android verification](https://github.com/atiarmridul/TelcoOtpRelay/actions/workflows/android.yml/badge.svg?branch=master)](https://github.com/atiarmridul/TelcoOtpRelay/actions/workflows/android.yml?query=branch%3Amaster)
 [![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-AGP%20built--in-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Gradle](https://img.shields.io/badge/Gradle-Wrapper-02303A?logo=gradle&logoColor=white)](https://gradle.org/)
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 
-A lightweight Android utility that forwards SMS messages from a dedicated phone to a Google Chat
-space. Users can relay every incoming SMS or restrict forwarding to likely OTP messages.
+> **An Android QA utility for capturing OTP/SMS messages from a dedicated test device and relaying them to Google Chat.**
 
-## What This App Does
+Telco OTP Relay was built to remove a repetitive step from mobile and telecom testing: manually checking a physical QA device for verification SMS messages during test execution.
 
-When an SMS arrives, the app:
+**Test flow:** Trigger test → SMS arrives → OTP is detected → message is relayed → continue testing.
+
+This project is designed for **authorized, dedicated QA devices and controlled test environments**.
+
+---
+
+## Why This Project Exists
+
+OTP-based flows are common in telecom and mobile applications, but automated tests can still depend on a physical device receiving the verification SMS.
+
+The usual workflow is:
+
+```text
+Trigger test
+    ↓
+Wait for SMS
+    ↓
+Pick up phone
+    ↓
+Read OTP
+    ↓
+Continue test
+```
+
+Telco OTP Relay turns that into:
+
+```text
+Trigger test
+    ↓
+SMS arrives
+    ↓
+OTP/Sender filter
+    ↓
+Google Chat
+    ↓
+Continue test
+```
+
+The goal is a focused QA utility — not a consumer messaging application.
+
+---
+
+## What It Does
+
+When an SMS arrives, the application:
 
 1. Receives the Android `SMS_RECEIVED` broadcast.
-2. Reconstructs the complete body of multipart messages.
-3. Applies the optional sender allow-list; a blank list accepts every sender.
-4. Applies the saved relay mode: all incoming messages, or OTP messages only.
-5. Uses the optional configured receiving number, or resolves it from the SIM when Android and the carrier expose it.
-6. Formats the receiving number, sender, timestamp, and original body.
-7. Sends the message to a configured Google Chat webhook.
+2. Reconstructs multipart SMS messages.
+3. Applies an optional sender allow-list.
+4. Applies the configured relay mode:
+   - **OTP messages only**
+   - **All incoming messages**
+5. Resolves the receiving SIM number when Android/carrier information is available.
+6. Formats the sender, receiving number, timestamp, and original message.
+7. Sends qualifying messages to a configured Google Chat webhook.
+8. Records privacy-safe delivery metadata for troubleshooting.
 
-In OTP-only mode, the parser acts only as a filter. In both modes, the full original SMS body is
-forwarded unchanged.
+### Example
+
+```text
+Receiving number: 01XXXXXXXXX
+Sender: 21209
+Timestamp: 27 Aug 2026, 07:39:56 PM
+Body: <#> Your verification code is 123456
+```
+
+If the device or carrier does not expose its own phone number, the receiving number is shown as `Unknown`.
+
+---
+
+## Engineering Highlights
+
+### Event-driven Android architecture
+
+Uses `BroadcastReceiver` to react to incoming SMS events instead of continuously polling the device.
+
+### OTP filtering
+
+OTP-only mode uses a regex-based parser to filter messages before delivery.
+
+### Sender allow-list
+
+Forwarding can be restricted to specific senders. A blank list accepts every sender.
+
+### Reliable delivery
+
+The delivery pipeline includes:
+
+- bounded retries
+- timeout controls
+- network availability handling
+- exponential retry for transient failures
+- a maximum pending-data lifetime
+- connection cleanup after every attempt
+
+### Privacy-aware diagnostics
+
+Relay history is designed to retain delivery metadata without exposing sensitive message content.
+
+The history surface does not display or store:
+
+- SMS bodies
+- OTP values
+- receiving numbers
+- webhook URLs
+- host addresses
+- raw exception text
+
+### Automated verification
+
+The repository includes JVM unit tests and Android instrumentation tests covering configuration, relay processing, OTP parsing, formatting, webhook behavior, privacy boundaries, UI states, permissions, and SMS receiver behavior.
+
+### CI verification
+
+GitHub Actions is used to verify the Android project automatically.
+
+---
+
+## Architecture
+
+```text
+                    Android SMS
+                         |
+                         v
+                  +-------------+
+                  | SmsReceiver |
+                  +-------------+
+                         |
+                         v
+               SmsBroadcastParser
+                         |
+                         v
+                  RelayProcessor
+                  /      |      \
+                 /       |       \
+                v        v        v
+       SenderFilter  RelayMode  Validation
+                         |
+                         v
+                     OtpParser
+                         |
+                         v
+                  SmsFormatter
+                         |
+                         v
+                    ChatSender
+                         |
+                         v
+                  Google Chat
+```
+
+### Main components
+
+| Component | Responsibility |
+| --- | --- |
+| `SmsReceiver` | Owns the Android SMS broadcast lifecycle and delivery/result persistence |
+| `SmsBroadcastParser` | Reconstructs Android SMS broadcasts into an incoming-message model |
+| `RelayProcessor` | Applies sender and relay-mode rules before delivery |
+| `SenderFilter` | Parses and matches the optional sender allow-list |
+| `RelayMode` | Determines whether OTP filtering is required |
+| `OtpParser` | Determines whether an SMS looks like an OTP message |
+| `SimNumberResolver` | Resolves the receiving SIM number when exposed by the platform |
+| `SmsFormatter` | Builds the outbound Google Chat message |
+| `ChatSender` | Sends the webhook request with bounded retries and timeouts |
+| `RelayHistoryStore` | Stores privacy-safe delivery-result metadata locally |
+| `ConfigurationState` | Handles persisted and edited configuration state |
+| `LastRelayStatus` | Represents the latest delivery result and safe diagnostics |
+
+---
+
+## Quality Engineering
+
+Quality is treated as part of implementation rather than something added after the feature is complete.
+
+### Automated tests
+
+JVM tests cover:
+
+- configuration state
+- relay processing
+- sender filtering
+- relay-mode selection
+- OTP parsing
+- message formatting
+- timestamp formatting
+- JSON encoding
+- bounded HTTP retries
+
+Instrumentation tests cover:
+
+- main configuration states
+- privacy boundaries
+- local relay history
+- failure reasons
+- privacy navigation
+- webhook visibility
+- action controls
+- requested permissions
+- SMS receiver behavior
+
+Run:
+
+```bash
+./gradlew check
+```
+
+For connected Android tests:
+
+```bash
+./gradlew connectedDebugAndroidTest
+```
+
+---
+
+## Battery-Efficient Design
+
+The application is designed around event-driven execution rather than a continuously running background process.
+
+- No foreground or always-running service
+- No polling or periodic timer
+- No alarm
+- No wake lock
+- No network heartbeat
+- No GPS/location access
+- No SMS database scan
+- One-time, network-constrained WorkManager jobs
+- Eight-second overall delivery budget
+- Two-second per-stage timeout caps
+- At most three webhook attempts per qualifying SMS
+- Exponential retry for transient failures
+- Pending delivery data removed after at most 24 hours
+- Network connections closed after every attempt
+
+---
+
+## Privacy & Security
+
+This application handles SMS content, which may contain sensitive information.
+
+Use it only with an **authorized, dedicated QA device** and an appropriate test environment.
+
+- Treat the Google Chat webhook URL as a credential.
+- Never commit webhook URLs or other credentials to Git.
+- Configuration is stored in app-private storage.
+- Relay-result history stores privacy-safe metadata rather than SMS bodies or OTP values.
+- Application backup is disabled in the Android manifest.
+- **All incoming messages** mode can forward non-OTP SMS messages, so enable it only when appropriate for the test environment.
+
+See [SECURITY.md](SECURITY.md) for security reporting guidance.
+
+---
+
+## Relay Modes
+
+| Mode | Behavior |
+| --- | --- |
+| **OTP messages only** | Forwards messages accepted by the OTP regex filter. |
+| **All incoming messages** | Forwards every non-empty incoming SMS without applying the OTP filter. |
+
+OTP-only mode is the default for new and upgraded installations.
+
+---
 
 ## Quick Start
 
-Clone the repository:
+### 1. Clone
 
 ```bash
 git clone https://github.com/atiarmridul/TelcoOtpRelay.git
 cd TelcoOtpRelay
 ```
 
-Build the debug APK:
+### 2. Build
 
 ```bash
 ./gradlew assembleDebug
 ```
 
-Install it on a connected Android device:
+The debug APK is produced at:
+
+```text
+app/build/outputs/distribution/SMS Relay.apk
+```
+
+### 3. Install
 
 ```bash
 adb install -r "app/build/outputs/distribution/SMS Relay.apk"
 ```
 
-The debug build also produces the shareable artifact
-`app/build/outputs/distribution/SMS Relay.apk`.
+### 4. Configure
 
-A prebuilt debug APK from the checked-in source is available at
-[`releases/SMS Relay.apk`](releases/SMS%20Relay.apk) for installation on the dedicated QA phone. It
-uses the Android debug signing key and is not a production release artifact; build from source when
-independent verification is required.
+Open the app and:
 
-Open the app, grant the requested permissions, enter a Google Chat webhook URL, optionally enter
-one or more allowed senders separated by commas, choose **OTP messages only** or **All incoming
-messages** from the dropdown, and tap **Save configuration**. Leave the sender field blank to relay
-messages from every sender.
+1. Grant the requested permissions.
+2. Enter a Google Chat incoming webhook URL.
+3. Optionally configure allowed senders.
+4. Select **OTP messages only** or **All incoming messages**.
+5. Tap **Save configuration**.
+6. Use **Test connection** to verify the webhook.
+
+Leave the sender field blank to accept messages from every sender.
+
+---
 
 ## Prerequisites
 
-- Android SDK 35; Android Studio is optional when the command-line SDK tools are installed
+- Android SDK 35
 - JDK 21 for the checked-in Gradle daemon criteria
 - Android 8.0 (API 26) or newer device with SMS capability
-- USB debugging and `adb` for command-line installation
-- A Google Chat incoming webhook URL
+- USB debugging and `adb`
+- Google Chat incoming webhook
 
-Check the local toolchain:
+Check the environment:
 
 ```bash
 java -version
@@ -74,9 +331,22 @@ adb devices
 ./gradlew --version
 ```
 
-The Foojay resolver in `settings.gradle.kts` supplies cross-platform JDK download locations for
-Gradle's daemon criteria. If the criteria need to be regenerated, run `./gradlew updateDaemonJvm`.
-This daemon setting does not change the app's Java/Kotlin JVM target of 17.
+The application's Java/Kotlin JVM target is 17.
+
+---
+
+## Permissions
+
+| Permission | Purpose |
+| --- | --- |
+| `RECEIVE_SMS` | Detect incoming SMS messages |
+| `READ_PHONE_NUMBERS` | Resolve the receiving SIM number when available |
+| `INTERNET` | Send qualifying messages to Google Chat |
+| `ACCESS_NETWORK_STATE` | Detect whether a validated internet connection is available |
+
+The app does not request contacts, camera, microphone, location, storage, notification, or default-SMS-app access.
+
+---
 
 ## Project Structure
 
@@ -103,221 +373,111 @@ This daemon setting does not change the app's Java/Kotlin JVM target of 17.
 ├── gradle/wrapper/
 ├── releases/
 │   └── SMS Relay.apk
+├── docs/
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
 ```
 
-## Architecture
-
-The app uses a small event-driven pipeline:
-
-```text
-Android SMS broadcast
-        |
-        v
-   SmsReceiver
-        |
-        +--> SmsBroadcastParser
-        +--> RelayProcessor
-                +--> SenderFilter
-                +--> RelayMode --> OtpParser when required
-        +--> SimNumberResolver
-        +--> SmsFormatter
-        +--> ChatSender --> Google Chat webhook
-```
-
-| Component           | Responsibility                                                            |
-|---------------------|---------------------------------------------------------------------------|
-| `MainActivity`      | Requests permissions and stores webhook, sender, and relay-mode configuration. |
-| `AboutPrivacyActivity` | Explains storage, forwarding, permissions, and user controls.          |
-| `ConfigurationState` | Calculates persisted and edited configuration states without Android views. |
-| `LastRelayStatus`   | Stores the latest result, sender, timestamp, and safe failure diagnostic.  |
-| `RelayHistoryActivity` | Shows locally stored delivery-result history and safe failure reasons. |
-| `RelayHistoryStore` | Appends privacy-safe relay metadata to the on-device SQLite history.       |
-| `SmsReceiver`       | Owns the Android broadcast lifetime, delivery, and result persistence.     |
-| `SmsBroadcastParser` | Reconstructs Android SMS broadcasts into an incoming-message model.       |
-| `RelayProcessor`    | Applies sender and relay-mode gates and prepares an outbound request.      |
-| `RelayMode`         | Restores the saved mode and decides whether an SMS should be forwarded.   |
-| `SenderFilter`      | Parses the optional sender allow-list and matches originating addresses.  |
-| `OtpParser`         | Determines whether an SMS looks like an OTP message.                      |
-| `SimNumberResolver` | Reads the receiving SIM number when the platform exposes it.              |
-| `SmsFormatter`      | Produces the Google Chat message text.                                    |
-| `ChatSender`        | Posts JSON to the webhook with bounded retries and timeouts.              |
+---
 
 ## Documentation
 
 | Document | Purpose |
 | --- | --- |
-| [Architecture](docs/ARCHITECTURE.md) | Runtime flow, component boundaries, threading, and design decisions. |
-| [Project context](docs/PROJECT_CONTEXT.md) | Product goals, scope, terminology, constraints, and success criteria. |
-| [Decision log](docs/DECISIONS.md) | Important architectural choices and their tradeoffs. |
-| [Testing](docs/TESTING.md) | Automated verification commands, manual scenarios, and coverage gaps. |
-| [Privacy](docs/PRIVACY.md) | Data handling, permissions, storage, transmission, and user controls. |
-| [Contributing](CONTRIBUTING.md) | Development workflow, quality checks, and coding standards. |
-| [Security](SECURITY.md) | Vulnerability reporting and guidance for handling sensitive data. |
-| [Agent guidance](AGENTS.md) | Canonical repository instructions for coding agents. |
+| [Architecture](docs/ARCHITECTURE.md) | Runtime flow, component boundaries, threading, and design decisions |
+| [Project context](docs/PROJECT_CONTEXT.md) | Product goals, scope, terminology, constraints, and success criteria |
+| [Decision log](docs/DECISIONS.md) | Important architectural choices and tradeoffs |
+| [Testing](docs/TESTING.md) | Automated verification, manual scenarios, and coverage gaps |
+| [Privacy](docs/PRIVACY.md) | Data handling, permissions, storage, transmission, and user controls |
+| [Contributing](CONTRIBUTING.md) | Development workflow, quality checks, and coding standards |
+| [Security](SECURITY.md) | Vulnerability reporting and security guidance |
+| [Agent guidance](AGENTS.md) | Repository instructions for coding agents |
 
-## Google Chat Message Format
+---
 
-```text
-Receiving number: 01XXXXXXXXX
-Sender: 21209
-Timestamp: 27 Aug 2026, 07:39:56 PM
-Body: <#> Your verification code is 123456
-```
+## Build & Verification
 
-If the device or carrier does not expose its own phone number, the receiving number is shown as `Unknown`.
-
-## Relay Modes
-
-| Mode                | Behavior                                                                                                    |
-|---------------------|-------------------------------------------------------------------------------------------------------------|
-| `OTP messages only`     | Forwards messages accepted by the OTP regex filter. This is the default for new and upgraded installations. |
-| `All incoming messages` | Forwards every non-empty incoming SMS body without applying the OTP filter.                                 |
-
-The compact configuration card identifies Google Chat as the destination provider. The webhook is
-masked by default and has an explicit Show/Hide control. The relay-mode dropdown shows contextual
-guidance and a dedicated privacy warning for **All incoming messages**. The header badge reports
-`Setup`, `Active`, `Unsaved`, `Invalid`, `Testing`, `Connected`, or `Failed` as configuration and test
-state changes. Editing the webhook, sender list, or mode does not affect active reception until **Save
-configuration** is tapped; when the form matches persisted settings, that action becomes a dimmed,
-disabled **Saved** button. **Test connection** remains a separate secondary action. Both actions use
-equal-width 48dp controls with complete rounded backgrounds and clearance from the card edge.
-
-When relay metadata exists, a separate card shows only the latest delivered/failed result, sender,
-SMS timestamp, and a privacy-safe failure category or HTTP status when applicable. Tapping that
-card opens the complete locally stored relay-result history. Neither surface displays or stores the
-SMS body, OTP, receiving number, webhook, host address, or exception text. The full
-standard-phone layout is intentionally compact, with scrolling retained for smaller windows and
-accessibility text. The history screen has a confirmed **Clear history** action that removes result
-metadata without changing relay configuration. The in-app **About & Privacy** card opens detailed
-data-handling information, and the installed version remains pinned to the bottom of the main screen.
-
-## Permissions
-
-| Permission | Purpose |
-| --- | --- |
-| `RECEIVE_SMS` | Detect incoming SMS messages. |
-| `READ_PHONE_NUMBERS` | Resolve the receiving SIM number when available. |
-| `INTERNET` | Send qualifying messages to Google Chat. |
-| `ACCESS_NETWORK_STATE` | Detect when no validated internet connection is available. |
-
-The app does not request contacts, camera, microphone, location, storage, notification, or default-SMS-app access.
-
-## Build and Verification
-
-Build the application:
+Build:
 
 ```bash
 ./gradlew assembleDebug
 ```
 
-The named output is `app/build/outputs/distribution/SMS Relay.apk`. When intentionally publishing
-the checked-in debug APK, copy that exact artifact and verify that both files have the same checksum:
+Run verification:
+
+```bash
+./gradlew check
+```
+
+Run connected Android tests:
+
+```bash
+./gradlew connectedDebugAndroidTest
+```
+
+When intentionally updating the checked-in debug APK:
 
 ```bash
 cp "app/build/outputs/distribution/SMS Relay.apk" "releases/SMS Relay.apk"
 shasum -a 256 "app/build/outputs/distribution/SMS Relay.apk" "releases/SMS Relay.apk"
 ```
 
-Run the Gradle verification lifecycle:
-
-```bash
-./gradlew check
-```
-
-Run connected Android tests when a device or emulator is available:
-
-```bash
-./gradlew connectedDebugAndroidTest
-```
-
-The project includes JVM unit tests for configuration state, relay processing, sender and relay-mode
-selection, OTP parsing, message formatting, timestamp formatting, JSON encoding, and bounded HTTP
-retries. Instrumentation tests protect the main configuration states, latest-relay privacy
-boundary, local history navigation and failure reasons, privacy navigation, webhook visibility,
-action-control dimensions, requested permissions, and SMS receiver contract.
-
-## Battery-Efficient Design
-
-- No foreground or always-running service
-- No polling, periodic timer, or alarm
-- No wake lock or network heartbeat
-- No GPS or location access
-- No SMS database or history scan
-- One-time, network-constrained WorkManager jobs; no periodic work
-- An eight-second overall delivery budget with two-second per-stage timeout caps
-- At most three webhook attempts per qualifying SMS
-- Immediate privacy-safe failure metadata when Android reports no validated internet connection
-- Exponential retry of transient failures, with pending data removed after at most 24 hours
-- Network connections closed after every attempt
+---
 
 ## Important Limitations
 
-- Android and mobile carriers do not always expose the SIM's own phone number; an optional configured override handles this case.
+- Android and mobile carriers do not always expose the SIM's own phone number.
 - OTP detection is regex-based and can produce false positives or miss unusual OTP formats.
-- Qualifying messages are queued in app-private storage and transient failures are retried for up to 24 hours. Android or OEM battery restrictions can still delay work, so delivery is not guaranteed.
-- Delivery retries can produce duplicate Google Chat messages if a response is lost.
-- A hard-deadline failure is reported as uncertain because an interrupted network request may have
-  reached Google Chat without returning a response.
-- Every qualifying message is forwarded; there is no duplicate suppression.
-- The app handles SMS only. It does not process MMS messages.
+- Qualifying messages may be queued and retried for up to 24 hours when transient delivery failures occur.
+- Android/OEM battery restrictions can delay background work, so delivery is not guaranteed.
+- A lost network response can result in a duplicate Google Chat message after a retry.
+- There is no duplicate suppression.
+- The application handles SMS only and does not process MMS messages.
 
-## Security and Privacy
-
-- Use this app only on an authorized, dedicated QA device.
-- Treat the Google Chat webhook URL as a credential and do not commit it to Git.
-- The webhook, relay mode, optional sender list, and relay-result history are stored locally in the
-  app's private storage. A qualifying SMS body and its webhook are retained only while delivery is
-  pending, for at most 24 hours. Result history does not retain bodies, OTPs, receiving numbers, or
-  raw error details.
-- SMS content is sent according to the saved relay mode. **All incoming messages** mode forwards
-  non-OTP messages too.
-- Application backup is disabled in the Android manifest.
-
-## Troubleshooting
-
-### SMS messages are not detected
-
-- Open the app and grant the SMS permission.
-- Confirm that the device supports telephony and can receive SMS messages.
-- Check the app's permissions in Android system settings.
-
-### Receiving number shows `Unknown`
-
-- Grant the phone-number permission.
-- Confirm that the active SIM is available to Android.
-- Some carriers do not store or expose the phone number; `Unknown` is expected in that case.
-
-### Google Chat receives nothing
-
-- Confirm that the saved URL starts with `https://chat.googleapis.com/`.
-- Verify that the phone has internet access.
-- In OTP-only mode, confirm that the incoming message matches the OTP filter.
-- Create a new webhook if the existing webhook has been revoked.
-
-### Gradle build fails
-
-- Confirm that JDK 21 and Android SDK 35 are installed.
-- Open the project in Android Studio and allow Gradle synchronization to complete.
-- Verify the SDK path in the local, untracked `local.properties` file.
+---
 
 ## Tech Stack
 
+**Android**
 - Kotlin
 - Android SDK
-- AndroidX Core and AppCompat
-- View Binding with XML layouts
-- Gradle Kotlin DSL
-- `BroadcastReceiver` for SMS events
-- `HttpURLConnection` for Google Chat delivery
-- `JSONObject` for request serialization
-- `java.time` for timestamp formatting
-- `SharedPreferences` for local configuration and the latest relay result metadata
-- SQLite for privacy-safe local relay-result history
+- AndroidX Core / AppCompat
+- View Binding
+- XML layouts
 
-Dependency and SDK versions are defined in `app/build.gradle.kts` and the root Gradle configuration.
+**Build & CI**
+- Gradle Kotlin DSL
+- Gradle Wrapper
+- GitHub Actions
+- Java 17 application target
+
+**Messaging**
+- Android `BroadcastReceiver`
+- Google Chat incoming webhook
+- `HttpURLConnection`
+- `JSONObject`
+
+**Storage**
+- `SharedPreferences`
+- SQLite
+
+**Date & Time**
+- `java.time`
+
+---
+
+## Why This Is a QA Engineering Project
+
+This repository is intentionally more than a small Android utility.
+
+It combines:
+
+**QA problem identification → solution design → implementation → automated verification → CI → reliability → privacy → documentation**
+
+The project is maintained as an engineering system so that its behavior, architecture, quality checks, and operational constraints are understandable and repeatable.
+
+---
 
 ## References
 
@@ -325,8 +485,15 @@ Dependency and SDK versions are defined in `app/build.gradle.kts` and the root G
 - [Android runtime permissions](https://developer.android.com/training/permissions/requesting)
 - [Google Chat incoming webhooks](https://developers.google.com/workspace/chat/quickstart/webhooks)
 
+---
+
 ## Contributing
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
+Before submitting a change:
 
-For security vulnerabilities or accidental credential exposure, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md).
+2. Run `./gradlew check`.
+3. Run connected Android tests when a device/emulator is available.
+4. Never commit credentials, webhook URLs, or sensitive SMS data.
+
+For security issues, use [SECURITY.md](SECURITY.md).
